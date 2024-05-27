@@ -1,0 +1,492 @@
+SDK = class {
+    init() {
+
+    }
+
+    pasteHtmlAtCaret(html) {
+        let sel, range;
+        $('#form' + this.id + ' div[contenteditable="true"]').focus();
+        if (window.getSelection) {
+            sel = window.getSelection();
+            if (sel.getRangeAt && sel.rangeCount) {
+                range = sel.getRangeAt(0);
+                range.deleteContents();
+
+                let el = document.createElement("div");
+                el.innerHTML = html;
+                let frag = document.createDocumentFragment(), node, lastNode;
+                while ((node = el.firstChild)) {
+                    lastNode = frag.appendChild(node);
+                }
+                range.insertNode(frag);
+
+                if (lastNode) {
+                    range = range.cloneRange();
+                    range.setStartAfter(lastNode);
+                    range.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            }
+        }
+        else if (document.selection && document.selection.type !== "Control") {
+            document.selection.createRange().pasteHTML(html);
+        }
+    }
+
+    initEvents() {
+        let that = this;
+        super.initEvents();
+        let moduleBody = that.$();
+        if (!moduleBody.length) {
+            moduleBody = that.$();
+        }
+        moduleBody.find('textarea').each(function () {
+            that.resizeTextArea(this);
+        });
+        $('#form' + that.id + ' div[contenteditable="true"]').on('paste', function (e) {
+            e.preventDefault();
+            let contentOnBlur = (e.originalEvent || e).clipboardData.getData('text/plain') || '';
+            document.execCommand('insertText', false, contentOnBlur); //NOSONAR
+        });
+        $('#list-message-chat' + that.id + ' li.message:not(.new-day)').each(function () {
+            let currentUserId = $(this).data('username'),
+                userId = $(this).prev().data('username');
+            if (currentUserId == userId) {
+                $(this).addClass('sequential');
+            }
+            else {
+                $(this).removeClass('sequential');
+            }
+        });
+        $('#form' + that.id + ' .chat-smiley').on('click', function () {
+            let sticker = $(this).text();
+            that.pasteHtmlAtCaret('<span style="font-size:20px;">' + sticker + '</span>');
+        });
+
+
+        moduleBody.on('click', function (event) {
+            setTimeout(function () {
+                if ($(event.target).next().is(".message-dropdown") === false) {
+                    moduleBody.find('.message-dropdown').remove();
+                }
+            }, 100);
+        });
+
+        if (that.isRedraw) {
+            return;
+        }
+        moduleBody.on('click', '.send-img-file' + that.id, function () {
+            let form = $(this).parents('form:first');
+            form.find('input[name="file"]').click();
+            form.find('.loading').show();
+            form.find('input[name="fields[file]"]').on('change', function () {
+                if (form.find('.loading img').length) {
+                    form.find('.loading img').attr('src', form.find('input[name="fields[file]"]').val());
+                }
+                else {
+                    form.find('.loading').append('<img class="comment-img-thumb" src=' + VHV.notag(
+                        form.find('input[name="fields[file]"]').val()) + '>');
+                }
+            });
+        });
+        moduleBody.find('.form' + that.id).submit(function () {
+            let textarea = $('[name="title"]:first', this);
+            if (textarea.val()) {
+                that.submitFunc(textarea[0]);
+            }
+            else {
+                VHV.alert("{'Vui lòng nhập %s', 'nội dung'}", {
+                    delay: 3000,
+                    type: 'error'
+                });
+            }
+            return false;
+        });
+        if (that.roomId) {
+            VHV.load('Member.Social', function () {
+                VHV.Member.Social.socketConnect(function () {
+                    this.socket.emit('room', that.roomId);
+
+                    function sendMessage(data) {
+                        data.room = that.roomId;
+                        if (data.content || data.images || data.sticker || data.file) {
+                            VHV.Member.Social.socket.emit('comments message', data);
+                        }
+                        if (data.botAnswer?.isCommand) {
+                            switch (data.botAnswer.content) {
+                                case 'clear()':
+                                    $('#list-message-chat' + that.id + '>li').remove();
+                                    break;
+                                case 'logout()':
+                                    VHV.Model('Member.User.logout')(false, function () {
+                                        VHV.redirect(VHV.buildURL());
+                                    });
+                                    break;
+                                default:
+                                    if (data.botAnswer.content.indexOf('(') === -1) {
+                                        data.botAnswer.isChatBot = 1;
+                                        addChatMessage(data.botAnswer);
+                                    }
+                                    break;
+                            }
+                        }
+                        else {
+                            data.botAnswer.isChatBot = 1;
+                            data.botAnswer.roomId = data.roomId;
+                            addChatMessage(data.botAnswer);
+                        }
+                    }
+
+                    function addChatMessage(data) {
+                        let ul = data.roomId ? $(
+                            '#module' + that.id + ' .bound-comments[data-id="' + data.roomId + '"]') : [],
+                            extraClass = '',
+                            myUserId = that.accountId,
+                            myDate = new Date(data.createdTime * 1000);
+                        if (!ul.length) {
+                            ul = $('#module' + that.id + ' .list-message-chat:first');
+                        }
+                        if (!data.roomId) {
+                            ul = ul.find('ul.sub-comment:first');
+                        }
+                        let day = myDate.getDate(),
+                            month = myDate.getMonth(),
+                            year = myDate.getFullYear(),
+                            date = day + '/' + (month + 1) + '/' + year, today = new Date(VHV.serverTime * 1000);
+                        if (today.getDate() === day && today.getMonth() === month && today.getFullYear() === year) {
+                            extraClass += ' today';
+                        }
+                        let meClass = (data.creatorAccountId === myUserId || data.creatorAccountId === 'guest') ? 'me-message' : '',
+                            avatarDefault = '/Extra/ChatGPT/images/big-icon.png',
+                            code,
+                            content = '',
+                            contentImage = '';
+                        if (data.content) {
+                            content = data.content;
+                            if (data.images) {
+                                for (let i in data.images) {
+                                    let item = data.images[i];
+                                    contentImage += '<div class="mb-5"><a href="' + VHV.rootURL + item['image'].replace(
+                                        /"/g,
+                                        '&quot;'
+                                    ) + '" target="_blank" title="Mở hình ảnh"><img alt="" src="' + VHV.rootURL + item['image'].replace(
+                                        /"/g, '&quot;') + '" width="160"/></a></div>';
+                                }
+                            }
+                        }
+                        else if (data.images) {
+                            for (let i in data.images) {
+                                let item = data.images[i];
+                                content += '<div class="mb-5"><a href="' + VHV.rootURL + item['image'].replace(
+                                    /"/g,
+                                    '&quot;'
+                                ) + '" target="_blank" title="Mở hình ảnh"><img alt="" src="' + VHV.rootURL + item['image'].replace(
+                                    /"/g, '&quot;') + '" width="160"/></a></div>';
+                            }
+                        }
+                        else if (data.sticker) {
+                            content = '<div class="mb-5"><a href="' + data.sticker.replace(
+                                /"/g,
+                                '&quot;'
+                            ) + '" target="_blank" title="Mở hình ảnh"><img alt="" src="' + data.sticker.replace(
+                                /"/g, '&quot;') + '" width="55"/></a></div>';
+                        }
+                        else if (data.file) {
+                            let file = data.file;
+                            let file1 = file.split('/');
+                            let fileTitle = file1[3] ? file1[3] : data.file;
+                            if (fileTitle.length > 20) {
+                                fileTitle = fileTitle.slice(0, 20);
+                                fileTitle += '...';
+                            }
+                            content = '<div class="mb-5"><a href="' + data.file.replace(
+                                /"/g,
+                                '&quot;'
+                            ) + '" target="_blank" title="Mở file"><i class="vi vi-download" aria-hidden="true"></i> ' + fileTitle + '</a></div>';
+                        }
+                        code = '<div class="message message-item margin-bottom-md d-flex'
+                            + extraClass + ' '
+                            + meClass + ' comment-item chat-message" data-username="'
+                            + data.creatorAccountId + '" data-date="' + date + '" data-timestamp="'
+                            + data.createdTime + '"><div class="day-divider hidden"><span>' + date + '</span></div>' +
+                            '<div class="item-img"><img src="'
+                            + (data.avatar ? '/' + data.avatar.replace(
+                                /"/g,
+                                '&quot;'
+                            ) : avatarDefault) + '" ' + (data.avatar ? 'width="40" height="40"' : '') + '></div>' +
+                            '<div class="item-content padding-left-sm">' +
+                            '<div class="item-top margin-bottom-xs"><div class="name text-bold padding-right-sm">' + VHV.notag(
+                                data.fullName) + '</div>' +
+                            '<div class="time" title="' + "{'Hiện tại'}" + '" data-time="' + data.createdTime + '">' + "{'Hiện tại'}" + '</div>' +
+                            '<span class="info hidden">' + (data.creatorAccountId === myUserId ? '<div class="message-cog-container "><i class="icon-cog message-cog vi vi-setting" data-x-service="openDropdown" aria-label="true"></i></div>' : '')
+                            + '</span></div>' +
+                            '<div class="item-bottom" style="word-wrap:break-word;"><div class="item-title padding-v-xs padding-h-sm border-radius-xs background-5 d-inline-b' + ((data.creatorAccountId === VHV.currentAccountId || data.creatorAccountId === 'guest') ? ' background-color-primary text-white pull-right' : ' background-color-gray') + ' ">' +
+                            '<div class="messageEditInline editable editable-click" data-id="' + data.id + '" data-object-id="' + that.roomId + '" data-object-type="ChatRoom" data-parent="">' + content + '</div>' +
+                            '<div class="item-image">' + contentImage + '</div>' +
+                            '</div></div></div></div>';
+                        ul.removeClass('hidden').append(code);
+                        that.$().find('.no-data').hide();
+                        that.$().find('#load-anwser').remove();
+                        that.scrollBottom();
+                    }
+
+                    VHV.Member.Social.listenRooms(that.roomId, function (data) {
+                        if (data?.deleteMessage) {
+                            that.removeMessage(data);
+                        }
+                        else {
+                            addChatMessage(data);
+                        }
+                    });
+                    window['sendMessage' + that.id] = function (data) {
+                        sendMessage(data);
+                    };
+                    that.scrollBottom();
+                });
+            });
+        }
+
+        let startTime = Math.round(new Date(VHV.serverTime * 1000).getTime() / 1000);
+
+        function elapseTime($remain) {
+            let $trail = ' trước';
+            if ($remain < 60) {
+                return ($remain % 60) + ' ' + "{'seconds'}" + $trail;
+            }
+            else if ($remain < 3600) {
+                return (Math.floor($remain / (60)) % 60) + ' ' + "{'minutes'}" + $trail;
+            }
+            else if ($remain < 24 * 3600) {
+                return (Math.floor($remain / (3600)) % 24) + ' ' + "{'hours'}" + $trail;
+            }
+            else if ($remain < 31 * 24 * 3600) {
+                return Math.floor($remain / (24 * 3600)) + ' ' + "{'days'}" + $trail;
+            }
+            return '';
+        }
+
+        setInterval(function () {
+            this.$('.time').each(function () {
+                let time = $(this).data('time'),
+                    currentTime = VHV.getTime(),
+                    newTime = (currentTime - startTime) + VHV.serverTime;
+                if (time && (newTime > time) && (newTime - time < 86400)) {
+                    $(this).html(elapseTime(newTime - time));
+                }
+            });
+            this.$('.time-chat-now').each(function () {
+                let time = $(this).data('time'), currentTime = VHV.getTime(),
+                    newTime = (currentTime - startTime) + VHV.serverTime;
+                if (time && (newTime > time) && (newTime - time < 86400)) {
+                    $(this).html(elapseTime(newTime - time));
+                }
+            });
+        }, 10000);
+    }
+
+    resizeTextArea(e) {
+        setTimeout(function () {
+            $(e).css({
+                'height': 'auto',
+                'overflow-y': 'hidden'
+            }).height(e.scrollHeight - 24);
+        }, 300);
+    }
+
+    submitOption(roomId, text) {
+        let that = this;
+        VHV.Model(that.submitService)({
+            text: text
+        }, function (response) {
+            if (typeof (response) === 'string') {
+                response = JSON.parse(response);
+            }
+            if (window['sendMessage' + that.id]) {
+                if (!response.content) {
+                    response.content = text;
+                }
+                if (!response.realContent) {
+                    response.realContent = text;
+                }
+                if (!response.roomId) {
+                    response.roomId = roomId;
+                }
+                if (!response.fullName) {
+                    response.fullName = that.fullName;
+                }
+                if (!response.avatar) {
+                    response.avatar = that.avatar;
+                }
+                window['sendMessage' + that.id](response);
+            }
+        });
+    }
+
+    submitFunc(thatObject) {
+        let that = this,
+            block = $(thatObject).parents('.message-form:first,.sub-comment-div:first'),
+            roomId = $('input[name="roomId"]', block).val(),
+            title = '', editableObject = $('div[contenteditable="true"]:first', block);
+        if (editableObject.length) {
+            editableObject = editableObject.clone();
+            editableObject.find('img').each(function () {
+                if (this.alt) {
+                    $(this).replaceWith(this.alt);
+                }
+            });
+            editableObject.find('br').each(function () {
+                $(this).replaceWith("\n");
+            });
+            title = editableObject.text();
+        }
+        if (roomId) {
+            $(thatObject).attr('disabled', 'disabled');
+            VHV.Model('Connect.ChatGPT.Chat.getInfo')({
+                text: title || ''
+            }, function (response) {
+                $('div[contenteditable="true"]:first', block).html('');
+                if (typeof (response) === 'string') {
+                    response = JSON.parse(response);
+                }
+                that.showQuestion(that, response, title);
+            });
+            VHV.Model('Connect.ChatGPT.Chat.send')({
+                text: title || ''
+            }, function (response) {
+                $('div[contenteditable="true"]:first', block).html('');
+                if (typeof (response) === 'string') {
+                    response = JSON.parse(response);
+                }
+                if (window['sendMessage' + that.id]) {
+
+                    if (!response.content) {
+                        response.content = title;
+                    }
+                    if (!response.realContent) {
+                        response.realContent = title;
+                    }
+                    if (!response.roomId) {
+                        response.roomId = roomId;
+                    }
+                    if (!response.fullName) {
+                        response.fullName = that.fullName;
+                    }
+                    if (!response.avatar) {
+                        response.avatar = that.avatar;
+                    }
+                    window['sendMessage' + that.id](response);
+                }
+                else {
+                    let code = '<li class="message bound-comments me-message sequential comment-item' + that.id + '" data-id="' + response.id + '" data-time="' + response.createdTime + '">' +
+                        '<div class="cmt-item">' +
+                        '<div class="tl-message">' +
+                        '<div class="action-item dropdown pull-right">' +
+                        '<a data-target="#" href="javascript:;" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" title="Chỉnh sửa"><i class="vi vi-setting" aria-hidden="true"></i></a> ' +
+                        '<ul class="dropdown-menu"> ' +
+                        '<li><a href="javascript:;" data-id="' + response.id + '" title="Xóa tin nhắn" data-x-service="deleteMessage" style="font-size:12px;"><i class="vi vi-trash"></i> '
+                        + "{'Xóa tin nhắn'}" + '</a></li>' +
+                        '<li><a data-x-service="editMessage" class="editComment" href="javascript:;" style="font-size:12px;"><i class="vi vi-pencil mr-5"></i>' + "{'Chỉnh sửa'}" + '</a></li>' +
+                        '</ul>' +
+                        '</div>' +
+                        '<div class="tl-message-content">' +
+                        '<div class="message-content tanhn content-smile body-message"><div data-id="' + response.id + '" class="messageEditInline" data-object-id="' + response.objectId + '" data-object-type="' + response.objectType + '" data-parent="">' + response.content.replace(
+                            /</g, '&lt;').replace(/>/g, '&gt;') + '</div></div>' +
+                        '<div class="comment-meta">' +
+                        '<span class="createdTime publish-date" data-time="' + response.createdTime + '">' + "{'Vừa xong'}" + '</span>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div></div></li>',
+                        ul = block.parents('.bound-comments:first');
+                    if (!ul.length) {
+                        ul = block.parents('section:first');
+                    }
+
+                    ul = ul.find('ul.sub-comment:first');
+                    ul.removeClass('hidden').append(code);
+                    that.$('.no-data').hide();
+                }
+                that.totalItems++;
+                $(thatObject).attr('disabled', false);
+                $('[name=title]', block).val('').focus();
+            });
+        }
+    }
+
+    showQuestion(that, response, title) {
+        let iconChat = '/Extra/ChatGPT/images/iconChat.png';
+        let avatarDefault = '/Extra/ChatGPT/images/big-icon.png';
+        let code = '<div class="message message-item margin-bottom-md d-flex today me-message comment-item chat-message" data-username="'
+            + response.creatorAccountId + '" data-date="' + response.day + '" data-timestamp="'
+            + response.createdTime + '"><div class="day-divider hidden"><span>' + 'date' + '</span></div>' +
+            '<div class="item-content padding-left-sm">' +
+            '<div class="item-top margin-bottom-xs"><div class="name text-bold padding-right-sm">' + VHV.notag(
+                response.fullName) + '</div>' +
+            '<div class="time tanhnTime" title="' + "{'Hiện tại'}" + '" data-time="' + response.createdTime + '">' + "{'Hiện tại'}" + '</div>' +
+            '<span class="info hidden">' + (response.creatorAccountId === 'myUserId' ? '<div class="message-cog-container "><i class="icon-cog message-cog vi vi-setting" data-x-service="openDropdown" aria-label="true"></i></div>' : '')
+            + '</span></div>' +
+            '<div class="item-bottom" style="word-wrap:break-word;"><div class="item-title padding-v-xs padding-h-sm border-radius-xs background-5 d-inline-b background-color-primary text-white pull-right">' +
+            '<div class="messageEditInline editable editable-click" data-id="' + response.id + '" data-object-id="' + that.roomId + '" data-object-type="ChatRoom" data-parent="">' + title + '</div>' +
+            '</div></div></div></div>';
+        let iconload = '<div id="load-anwser" class="message message-item margin-bottom-md d-flex today' +
+            '  comment-item' +
+            ' chat-message" ' +
+            'data-username="ChatGPT"><div class="day-divider hidden"></div>' +
+            '<div class="item-img"><img src="' + avatarDefault + '" ' + '></div>' +
+            '<div class="item-content padding-left-sm">' +
+            '<div class="item-top margin-bottom-xs"><div class="name text-bold padding-right-sm">' + "{'ChatGPT'}" + '</div>' +
+            '<span class="info hidden">' + (response.creatorAccountId === 'myUserId' ? '<div class="message-cog-container' +
+                ' "><i class="icon-cog message-cog vi vi-setting" data-x-service="openDropdown" aria-label="true"></i></div>' : '')
+            + '</span></div>' +
+            '<div class="item-bottom" style="word-wrap:break-word;"><div class="item-title padding-v-xs padding-h-sm border-radius-xs background-5 d-inline-b' + ((response.creatorAccountId === VHV.currentAccountId || response.creatorAccountId === 'guest') ? ' background-color-primary text-white pull-right' : ' background-color-gray') + ' ">' +
+            '<div class="messageEditInline editable editable-click" data-id="' + response.id + '" data-object-id="' + that.roomId + '" data-object-type="ChatRoom" data-parent=""><img class="zoom-element" src="' + iconChat + '" ' + '></div>' +
+            '</div></div></div></div>';
+        let ul = $('#module' + that.id + ' .list-message-chat:first');
+        ul.removeClass('hidden').append(code);
+        ul.removeClass('hidden').append(iconload);
+        that.$('.no-data').hide();
+    }
+
+    scrollBottom() {
+        let ul = this.$().find('#list-message-chat' + this.id),
+            wrapper = this.$().find('.scroll-container:first');
+        if (wrapper.length) {
+            $(wrapper).animate({
+                scrollTop: ul[0].scrollHeight ? ul[0].scrollHeight : 10000
+            }, 500);
+        }
+    }
+
+    smileIconShow(options, object) {
+        let target = object.data('target'),
+            wrapper = object.data('wrapper'),
+            offsetBottom = $('.' + wrapper).outerHeight(),
+            targetElement = $('.' + target);
+        if (targetElement.is(':visible')) {
+            targetElement.hide();
+        }
+        else {
+            targetElement.show().css({ 'bottom': offsetBottom });
+        }
+    }
+
+    fullWindow(options, object) {
+        let that = this, chatbotWindow = $('#module' + that.id + ' .window-chatGPT');
+        if (chatbotWindow.hasClass('full-screen')) {
+            chatbotWindow.removeClass('full-screen');
+        }
+        else {
+            chatbotWindow.addClass('full-screen');
+        }
+        object.find('i:first').toggleClass('vi-maximize-open vi-minimize-close');
+    }
+
+    closeWindow(options, object) {
+        let that = this,
+            targetShow = object.data('target');
+        $('#module' + that.id + ' .window-chatGPT').remove();
+        if (targetShow) {
+            $(targetShow).show();
+        }
+    }
+};
