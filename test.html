@@ -3,7 +3,6 @@
   <head>
     <title>Chatbot</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="./test.js"></script>
     <link rel="stylesheet" href="./test.css" />
   </head>
   <body></body>
@@ -21,22 +20,27 @@
         $obj.parent().hide();
     } */
 
-  const chatWindow = new ChatWindow();
-  chatWindow.init({
-    site: "https://stdvlocal.coquan.vn",
-    siteId: 2005699,
-    chatGPTImg: "./big-icon.png",
-    title: "My Chat GPT",
-    gridModuleParentId: "123",
-    mid: "456",
-    roomId: "789",
-  });
-  $(document).ready(function () {
-    $(".chatGPT-icon").click(function () {
-      console.log(123123);
-      if (!$(".window-chatbot").length) {
-        document.getElementById("chat-window").appendChild(chatWindow.createChatWindow());
-      }
+  $.ajaxSetup({ cache: true });
+  $.getScript("./test.js", function () {
+    const chatWindow = new ChatWindow();
+    chatWindow.init({
+      site: "https://stdvlocal.coquan.vn",
+      siteId: 2005699,
+      chatGPTImg: "./big-icon.png",
+      title: "My Chat GPT",
+      gridModuleParentId: "123",
+      mid: "456",
+      roomId: "789",
+    });
+    $(document).ready(function () {
+      $(".chatGPT-icon").click(function () {
+        console.log(123123);
+        if (!$(".window-chatbot").length) {
+          document
+            .getElementById("chat-window")
+            .appendChild(chatWindow.createChatWindow());
+        }
+      });
     });
   });
 
