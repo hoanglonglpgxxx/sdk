@@ -1,7 +1,3 @@
-/*----------------TEST CSS----------------*/
-:root {
-  --brand-primary: #b70100;
-}
 /*----------------BASE CSS----------------*/
 body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -45,8 +41,17 @@ img {
 
 .x-botchat {
   position: absolute;
-  left: -700px;
   cursor: pointer;
+}
+
+.btn {
+  padding-top: 0.44rem;
+  padding-bottom: 0.44rem;
+  border-radius: 0.5rem !important;
+}
+
+.margin-bottom-2xs {
+  margin-bottom: 0.25rem;
 }
 
 /*--------------------DETAIL CSS------------------*/
@@ -178,6 +183,9 @@ img {
   margin: 0.5rem;
   padding: 0.5rem;
   font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .window-chatbot .footer button.submit svg path {

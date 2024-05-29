@@ -12,7 +12,6 @@ class ChatWindow {
         this.file = config.file || null;
 
         this.loadCSS('./sample.css');
-        this.loadCSS('https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css');
         // this.loadCSS(`${this.site}/3rdparty/jQuery/tipsy/tipsy.css`);
 
         /* VHV.load('3rdparty/jQuery/tipsy/tipsy.js', function () {
@@ -23,7 +22,7 @@ class ChatWindow {
             });
         }); */
 
-        let p = `<div id="chat-GPT{quote(mid)}" class="chatGPT-icon chatbot-icon"><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="./big-icon.png" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
+        let p = `<div id="chat-GPT{quote(mid)}" class="chatGPT-icon chatbot-icon"><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="${this.chatGPTImg}" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
         document.body.innerHTML += p;
 
         this.initEvents();
@@ -194,7 +193,15 @@ class ChatWindow {
 
     getDate() {
         let currentDay = new Date().toLocaleString('en-us', { weekday: 'long' });
-
+        switch (currentDay) {
+            case 'Monday': currentDay = 'Thứ hai'; break;
+            case 'Tuesday': currentDay = 'Thứ ba'; break;
+            case 'Wednesday': currentDay = 'Thứ tư'; break;
+            case 'Thursday': currentDay = 'Thứ năm'; break;
+            case 'Friday': currentDay = 'Thứ sáu'; break;
+            case 'Saturday': currentDay = 'Thứ bảy'; break;
+            case 'Sunday': currentDay = 'Chủ nhật'; break;
+        }
         let startDate = new Date();
         startDate.setHours(startDate.getHours() - 1);
 
@@ -362,20 +369,42 @@ class ChatWindow {
             chatContainer = document.querySelector('.list-message-chat'),
             time = this.getDate(),
             msg = input;
+
+
         newMessage.className = `message message-item margin-bottom-md d-flex today me-message comment-item chat-message`;
         botNewMessage.className = `message message-item margin-bottom-md d-flex today comment-item chat-message`;
 
-        newMessage.innerHTML = `<div class="item-img"><img alt="" src="${this.chatGPTImg ? this.chatGPTImg : '/Extra/ChatGPT/images/small-icon.png'}" onerror="this.src='./small-icon.png';" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${res.fullName ?? 'Bạn'}</div> <div class="time">${time.currentDay}</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
-
+        newMessage.innerHTML = `<div class="item-img"><img alt="" src="${this.chatGPTImg ? this.chatGPTImg : '/Extra/ChatGPT/images/small-icon.png'}" onerror="this.src='./small-icon.png';" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${res.fullName ?? 'Bạn'}</div> <div class="time my-time">${time.currentDay}</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
+        //time của createdTime trả về đang lệch với hàm new Date()
         chatContainer.appendChild(newMessage);
+        let timeEl = newMessage.querySelector('.time');
+        let createdTime = new Date(res.createdTime * 1000);
+        let updateTime = () => {
+            let currentTime = new Date();
+            let timeDifference = currentTime - createdTime;
+            console.log(currentTime, createdTime, timeDifference);
+            let timeDifferenceInMinutes = Math.floor(timeDifference / 1000 / (timeDifference > 60 ? 60 : 1));
+            timeEl.textContent = `${timeDifferenceInMinutes}  ${timeDifference > 60 ? 'phút' : 'giây'} trước`;
+        };
+        console.log(newMessage.querySelectorAll('.my-time'));
+        /* newMessage.querySelectorAll('.my-time').forEach(timeEl => {
+            console.log(112);
+            updateTime(timeEl, res.createdTime * 1000);
+        }); */
+        setInterval(updateTime, 1000);
+
         console.log(res);
         if (res.botAnswer) {
             let botRes = res.botAnswer;
             msg = botRes?.content;
-            botNewMessage.innerHTML = `<div class="item-img"><img alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : '/Extra/ChatGPT/images/small-icon.png')}" onerror="this.src='./small-icon.png';" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botRes.fullName ?? 'Bạn'}</div> <div class="time">${time.currentDay}</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
+            botNewMessage.innerHTML = `<div class="item-img"><img alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : '/Extra/ChatGPT/images/small-icon.png')}" onerror="this.src='./small-icon.png';" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botRes.fullName ?? 'Bạn'}</div> <div class="time" data-time="${res.botAnswer.createdTime}">${time.currentDay}</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
 
             chatContainer.appendChild(botNewMessage);
         }
+
+
+
+
     }
 
     resizeTextArea(textarea) {
