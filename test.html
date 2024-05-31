@@ -3,6 +3,7 @@
   <head>
     <title>Chatbot</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script async defer crossorigin src="./test.js"></script>
   </head>
   <body></body>
 </html>
@@ -18,27 +19,15 @@
         });
         $obj.parent().hide();
     } */
-
-  $.ajaxSetup({ cache: true });
-  $.getScript("./test.js", function () {
-    const chatWindow = new ChatWindow();
+  window.chatbotAsyncInit = function () {
+    let chatWindow = new ChatWindow();
     chatWindow.init({
       siteId: 2005699,
-      chatGPTImg: "./big-icon.png",
-      title: "My Chat GPT",
+      chatGPTImg: "/big-icon.png",
+      title: "{'Trợ lý ảo'}",
       roomId: "789",
     });
-    /* $(document).ready(function () {
-      $(".chatGPT-icon").click(function () {
-        console.log(123123);
-        if (!$(".window-chatbot").length) {
-          document
-            .getElementById("chat-window")
-            .appendChild(chatWindow.createChatWindow());
-        }
-      });
-    }); */
-  });
+  };
 
   /* $(".x-botchatGPT").click(function () {
     $(".chatGPT-icon-action").hide();
