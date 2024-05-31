@@ -8,7 +8,7 @@ class ChatWindow {
         this.roomId = config.roomId || '';
         this.file = config.file || null;
 
-        this.loadCSS('./sample.css');
+        this.loadCSS('/sample.css');
 
         /* if (VHV) {
             console.log(VHV.getTime());
@@ -266,7 +266,6 @@ class ChatWindow {
     initChat(chatWindow) {
         const that = this;
 
-
         /* chưa thấy chỗ dùng hàm này
         let textareas = chatWindow.querySelectorAll(' textarea');
         textareas.forEach(function (textarea) {
@@ -337,27 +336,10 @@ class ChatWindow {
                  html: true
              });
          }); */
-        /*
-                VHV.load('3rdparty/Bootstrap/bootstrap3-editable/js/bootstrap-editable.min.js');
-                $(`#form${that.mid}`).submit(function () {
-                    const textarea = $(this).find('[name="title"]:first');
-                    const textHTML = $(this).find('div[contenteditable="true"]:first');
-        
-                    if (textarea.val() || textHTML.html()) {
-                        that.submitFunc(textarea);
-                    } else {
-                        VHV.alert("{'Vui lòng nhập %s', 'nội dung'}", {
-                            delay: 3000,
-                            type: 'error'
-                        });
-                    }
-                    return false;
-                }); */
     }
 
     submitOption(roomId, text) {
         this.submitFunc(text, roomId, true);
-        console.log(1);
         /* VHV.Model(that.submitService)({
             text: text
         }, function (response) {
@@ -400,15 +382,6 @@ class ChatWindow {
                 console.log(res);
                 let botAnswer = res.botAnswer;
                 that.addMessage(res, isOption ? el : el.innerHTML);
-                /*  if (botAnswer && botAnswer.content[0].includes('chatBotOtherQuest')) {
-                     console.log(document.querySelectorAll('.chatBotOtherQuest'));
-                     document.querySelectorAll('.chatBotOtherQuest').forEach((item) => {
-                         item.addEventListener('click', function (e) {
-                             e.preventDefault();
-                             that.submitOption(res.roomId, item.textContent);
-                         });
-                     });
-                 } */
             })
             .then(() => {
                 if (!isOption) el.innerHTML = '';
@@ -436,25 +409,6 @@ class ChatWindow {
             // console.log(currentTime, timeDifference, timeDifferenceInMinutes, timeEl);
             timeEl.textContent = `${timeDifferenceInMinutes}  ${timeDifference / 1000 > 60 ? 'phút' : 'giây'} trước`;
         };
-
-
-        /* setInterval(function () {
-            this.$('.time').each(function () {
-                let time = $(this).data('time'),
-                    currentTime = VHV.getTime(),
-                    newTime = (currentTime - startTime) + VHV.serverTime;
-                if (time && (newTime > time) && (newTime - time < 86400)) {
-                    $(this).html(elapseTime(newTime - time));
-                }
-            });
-            this.$('.time-chat-now').each(function () {
-                let time = $(this).data('time'), currentTime = VHV.getTime(),
-                    newTime = (currentTime - startTime) + VHV.serverTime;
-                if (time && (newTime > time) && (newTime - time < 86400)) {
-                    $(this).html(elapseTime(newTime - time));
-                }
-            });
-        }, 10000); */
 
         if (res.botAnswer) {
             let botRes = res.botAnswer;

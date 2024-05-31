@@ -10,6 +10,7 @@
    10.sửa submitFunc giống VHV.model
 10. submitOption cũ có nhiều JS, why?
 11. chưa xử lý khi không call api được URI TOO LARGE, stdvlocal k bị
+12. đổi path thành dạng /aaa.js
 
 đổi các phần còn dùng jquery -> js thuần,gán lại các biến có dùng tham số trong potal
 shift to step back -> attack

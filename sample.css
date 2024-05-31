@@ -56,6 +56,15 @@ img {
 .margin-bottom-2xs {
   margin-bottom: 0.25rem;
 }
+#iframe {
+  border: none;
+  width: 450px;
+  bottom: 0;
+  height: 70vh;
+  right: 3px;
+  position: fixed;
+  z-index: 999;
+}
 
 /*--------------------DETAIL CSS------------------*/
 .chatbot-icon {
