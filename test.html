@@ -3,7 +3,7 @@
   <head>
     <title>Chatbot</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script async defer crossorigin src="./test.js"></script>
+    <script async defer crossorigin src="/test.js"></script>
   </head>
   <body></body>
 </html>
@@ -23,6 +23,7 @@
     let chatWindow = new ChatWindow();
     chatWindow.init({
       siteId: 2005699,
+      mainCssPath: "/test.css",
       chatGPTImg: "/big-icon.png",
       title: "{'Trợ lý ảo'}",
       roomId: "789",

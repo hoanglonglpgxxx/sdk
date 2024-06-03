@@ -1,21 +1,21 @@
 class ChatWindow {
-    init(config) {
+    init() {
         this.site = "https://stdvlocal.coquan.vn";
-        this.siteId = config.siteId || '';
-        this.myUserId = config.myUserId || '';
-        this.chatGPTImg = config.chatGPTImg || '/Extra/ChatGPT/images/small-icon.png';
-        this.title = config.title || 'Chat GPT';
-        this.roomId = config.roomId || '';
-        this.file = config.file || null;
+        // this.siteId = config.siteId || '';
+        // this.myUserId = config.myUserId || '';
+        // this.chatGPTImg = config.chatGPTImg || '/Extra/ChatGPT/images/small-icon.png';
+        // this.title = config.title || 'Chat GPT';
+        // this.roomId = config.roomId || '';
+        // this.file = config.file || null;
 
         this.loadCSS('/sample.css');
-        // this.getParams();
-        /* let allParams = this.getQueryParams();
+
+        let allParams = this.getQueryParams();
         allParams.forEach(param => {
             console.log(this);
             this[param.key] = param.value;
         });
- */
+
         /* if (VHV) {
             console.log(VHV.getTime());
         } */
@@ -31,10 +31,20 @@ class ChatWindow {
 
         let p = `<div id="chat-GPT" class="chatGPT-icon chatbot-icon"><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="${this.chatGPTImg}" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
         document.body.innerHTML += p;
-        console.log(123123123);
+
         this.initEvents();
 
         // this.initUsingIframe(); //TEST CASE TẠO IFRAME
+        /*         let iframe = document.querySelector('#your-iframe-id'); // replace with your iframe id
+        let iframeWindow = iframe.contentWindow || iframe.contentDocument;
+        
+        if (iframeWindow) {
+            iframeWindow.initEvents = function() {
+                // Your initEvents code here...
+            };
+        
+            iframeWindow.initEvents();
+        } */
     }
 
     getQueryParams() {
@@ -51,15 +61,6 @@ class ChatWindow {
         return result;
     }
 
-    getParams() {
-        let scriptUrl = document.querySelector('script[src*="test.js"]').src;
-        let url = new URL(scriptUrl);
-
-        this.siteId = url.searchParams.get('siteId');
-        this.chatGPTImg = url.searchParams.get('chatGPTImg');
-        this.title = url.searchParams.get('title');
-        this.roomId = url.searchParams.get('roomId');
-    }
 
     loadCSS(val) {
         let link = document.createElement('link');
@@ -95,11 +96,17 @@ class ChatWindow {
             chatGPTIcon = document.querySelector('.chatGPT-icon'),
             xBotChat = document.querySelector('.x-botchat'),
             chatWindow = document.getElementById('chat-window'),
-            iframe = document.createElement('iframe');
+            iframe = this.createElement('iframe', '', {
+                id: 'iframe'
+            });
         chatGPTIcon.addEventListener('click', function (e) {
             e.stopPropagation();
             if (!document.querySelector('.window-chatbot')) {
-                chatWindow.appendChild(that.createChatWindow());
+                document.body.appendChild(iframe);
+                var doc = document.getElementById('iframe').contentWindow.document;
+                doc.open();
+                doc.write(that.createChatWindow().innerHTML);
+                doc.close();
             }
         });
         xBotChat.addEventListener('click', function (e) {
@@ -494,6 +501,4 @@ class ChatWindow {
     }
 }
 
-window.onload = function () {
-    window.chatbotAsyncInit();
-};
+
