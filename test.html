@@ -3,7 +3,7 @@
   <head>
     <title>Chatbot</title>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script async defer crossorigin src="/test.js"></script>
+    <script src="/ChatBotSDK.js"></script>
   </head>
   <body></body>
 </html>
@@ -19,34 +19,27 @@
         });
         $obj.parent().hide();
     } */
-  window.chatbotAsyncInit = function () {
-    let chatWindow = new ChatWindow();
-    chatWindow.init({
-      siteId: 2005699,
-      mainCssPath: "/test.css",
-      chatGPTImg: "/big-icon.png",
-      title: "{'Trợ lý ảo'}",
-      roomId: "789",
-    });
+  /* window.chatbotAsyncInit = function () {
+   
   };
-
-  /* $(".x-botchatGPT").click(function () {
-    $(".chatGPT-icon-action").hide();
-    $(".x-botchatGPT").hide();
-  }); */
+ */
+  let chatWindow = new ChatWindow();
+  chatWindow.init({
+    siteId: 2005699,
+    mainCssPath: "/test.css",
+    chatGPTImg: "/big-icon.png",
+    title: "{'Trợ lý ảo'}",
+  });
+  /*api loại 2 call thẳng chatgpt, vẫn chỉ có text, site, securityToken
+  Connect.ChatGPT.Chat.getInfo -> hiện câu hỏi 
+   Connect.ChatGPT.Chat.send -> send câu hỏi & lấy response
+   layout: Connect.ChatGPT.chatWindow;
+   cần có portal()->chatGPTKey
+   getInfo để lấy data người dùng
+   */
 </script>
 
 <style>
-  /*   .chatGPT-icon-action {
-    position: relative;
-    bottom: 100px;
-  } */
-
-  /* #chat-GPT{mid} {
-        position: fixed;
-        right: 50px;
-        bottom: 50px;
-    } */
   .window-chatbot .header {
     display: flex;
     border-radius: 12px 12px 0 0;
