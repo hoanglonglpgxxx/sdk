@@ -503,3 +503,7 @@ class ChatWindow {
         }
     }
 }
+
+/* window.onload = function () {
+    window.chatbotInit();
+}; */
