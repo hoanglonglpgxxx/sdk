@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chatbot</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  </head>
+  <body>
+    <!-- Your chatbot HTML goes here -->
+
+    <script>
+      $(document).ready(function () {
+        $.ajaxSetup({ cache: true });
+        $.getScript("https://connect.facebook.net/en_US/sdk.js", function () {
+          STDVChatbot.init({
+            appId: "{your-app-id}",
+            version: "v2.7", // or v2.1, v2.2, v2.3, ...
+          });
+          $("#loginbutton,#feedbutton").removeAttr("disabled");
+          STDVChatbot.getLoginStatus(updateStatusCallback);
+        });
+      });
+    </script>
+  </body>
+</html>

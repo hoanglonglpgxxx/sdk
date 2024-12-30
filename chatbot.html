@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="./lastest.js"></script>
+  </head>
+  <body></body>
+</html>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    if (typeof ChatWindow !== "undefined") {
+      const chatWindow = new ChatWindow();
+      chatWindow.init({
+        chatGPTImg:
+          "https://haiduong-chatbot.coquan.net/upload/2006916/20241212/quoc-huy_f99e5_84073.png",
+        bigIconChat:
+          "https://haiduong-chatbot.coquan.net/upload/2006916/20241212/quoc-huy_f99e5_84073.png",
+        configCSS: "./sdk.css",
+        sendEndPoint: "api/Extra/ChatBot/Chat/send",
+        primary: "red",
+        site: "https://chatbottthc.coquan.vn",
+        defaultMessage: "Xin chào 1123",
+      });
+    } else {
+      console.error("botSDK is not loaded.");
+    }
+  });
+</script>
