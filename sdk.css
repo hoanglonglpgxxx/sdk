@@ -337,6 +337,20 @@
   padding: 1.25rem;
 }
 
+.window-chatbot .other-info {
+  display: block;
+  padding: 5px 10px;
+  border: 1px solid #d5c1c1;
+  border-radius: 10px;
+  background: #fff;
+  width: fit-content;
+  color: #333;
+  margin: 4px 0;
+}
+.window-chatbot .other-info:hover,
+.window-chatbot .other-info:focus {
+  text-decoration: none;
+}
 /*-----------------FOOTER*/
 
 @media only screen and (max-width: 1440px) {

@@ -69,7 +69,7 @@ class ChatWindow {
                 chatWindow.appendChild(that.createChatWindow());
                 setTimeout(() => {
                     const msgInput = document.getElementById('input-message');
-                    document.getElementById('input-message').addEventListener('paste', (event) => {
+                    msgInput.addEventListener('paste', (event) => {
                         event.preventDefault();
 
                         const pasteContent = (event.clipboardData || window.clipboardData).getData('text');
@@ -84,6 +84,7 @@ class ChatWindow {
                         selection.removeAllRanges();
                         selection.addRange(range);
                     });
+
                     that.handleScrollUp();
                 }, 300);
             } else {
@@ -436,7 +437,13 @@ class ChatWindow {
         }
     }
 
-    async addMessage(res, input) {
+    replaceQuotesInTags(input) {
+        return input.replace(/<[^>]*>/g, function (match) {
+            return match.replace(/"/g, "'");
+        });
+    }
+
+    async addMessage(res, input, isAuto = false, autoArr = {}) {
         let newMessage = this.createElement('div'),
             botNewMessage = this.createElement('div'),
             chatContainer = document.querySelector('.list-message-chat'),
@@ -476,6 +483,14 @@ class ChatWindow {
             botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botRes.fullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${res.botAnswer.createdTime}">Vừa xong</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
 
             chatContainer.appendChild(botNewMessage);
+            if (res.botAnswer.otherInfo) {
+                let otherInfo = res.botAnswer.otherInfo;
+                for (let i of otherInfo) {
+                    let modifiedData = that.replaceQuotesInTags(i.data);
+                    botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-title="${i.title}" data-title="${i.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${i.title}</a>`);
+                }
+                that.handleQuestDetail();
+            }
             /* let prevMeMessage = botNewMessage.previousElementSibling;
             while (prevMeMessage && !prevMeMessage.classList.contains('me-message')) {
                 prevMeMessage = prevMeMessage.previousElementSibling;
@@ -487,7 +502,6 @@ class ChatWindow {
                     prevMeTimeElement.setAttribute('data-time', res.createdTime);
                 }
             } */
-
             this.scrollBottom();
         }
 
@@ -514,11 +528,28 @@ class ChatWindow {
             }
         };
 
-        if (Object.keys(res).length === 0) {
+        if (Object.keys(res).length === 0 && !isAuto) {
             await fetchServerTime();
             newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png'}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${res.fullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(serverStartTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
 
             chatContainer.appendChild(newMessage);
+        }
+        if (isAuto) {
+            await fetchServerTime();
+            let userQuest = autoArr.title ?? '',
+                botRes = autoArr.content ?? '',
+                botFullName = autoArr.botFullName ?? '',
+                userFullName = autoArr.fullName ?? '';
+
+            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png'}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(serverStartTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
+            chatContainer.appendChild(newMessage);
+            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(serverStartTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botRes ?? ''}</div></div></div>`;
+            that.trimBrTags(newMessage.getElementsByClassName('title'));
+            that.trimBrTags(botNewMessage.getElementsByClassName('title'));
+            chatContainer.appendChild(botNewMessage);
+            setTimeout(() => {
+                that.scrollBottom();
+            }, 100);
         }
         let updateTimeInterval = () => {
             if (!serverStartTime || !clientStartTime) return;
@@ -544,7 +575,29 @@ class ChatWindow {
                 }, 60000);
             }, 3600000);
         })();
+    }
 
+    trimBrTags(selector) {
+        if (selector) {
+            selector[0].innerHTML = selector[0].innerHTML.replace(/^(<br\s*\/?>|\s|&nbsp;)+/, '').replace(/(<br\s*\/?>|\s|&nbsp;)+$/, '');
+        }
+    }
+
+    handleQuestDetail() {
+        let that = this;
+        let questDetail = document.getElementsByClassName('other-info');
+
+        for (let i of questDetail) {
+            i.addEventListener('click', function () {
+                let detailVal = {
+                    title: this.dataset.title,
+                    content: this.dataset.content,
+                    botFullName: this.dataset.botFullName,
+                    fullName: this.dataset.fullName
+                };
+                that.addMessage({}, '', true, detailVal);
+            });
+        }
     }
 
     getDay() {
