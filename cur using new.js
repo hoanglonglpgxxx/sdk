@@ -1,20 +1,23 @@
 class ChatWindow {
     async init(config) {
         this.site = config.site || window.location.origin;
-        this.chatGPTImg = config.chatGPTImg || 'https://haiduong-chatbot.coquan.net/upload/2006916/20241212/quoc-huy_f99e5_84073.png';
-        this.bigIconChat = config.bigIconChat || './big-icon.png';
+        this.chatGPTImg = config.chatGPTImg ?? 'https://haiduong-chatbot.coquan.net/upload/2006916/20250102/Group_0daaf.png';
+        this.bigIconChat = config.bigIconChat ?? 'https://haiduong-chatbot.coquan.net/upload/2006916/20250102/bot_main_img_c172f.png';
         this.title = config.title || 'Trợ lý ảo';
-        this.defaultMessage = config.defaultMessage || 'Xin chào anh/chị. Em là Trợ Lý Ảo của Sở Thông Tin và Truyền Thông Hải Dương. Anh/Chị có cần hỗ trợ gì về các thủ tục hành chính của Tỉnh Hải Dương không ạ?';
-        this.file = config.file || null;
+        this.defaultMessage = config.defaultMessage || 'Xin chào anh/chị. Tôi là Trợ Lý Ảo của Sở Thông Tin và Truyền Thông Hải Dương. Anh/Chị cần hỗ trợ gì về các thủ tục hành chính của Tỉnh Hải Dương không ạ?';
         this.lastMessageTime = null;
-        this.msgInterval = config.msgInterval ?? 6000;
+        this.serverStartTime = null;
+        this.defaultErrMsg = "Trợ lý ảo hiện không thể phản hồi, vui lòng thử lại sau.";
+        this.endConvMsg = config.endConvMsg || 'Cảm ơn anh/chị đã quan tâm!';
+        this.msgInterval = parseInt(config.msgInterval, 10) ?? 60000;
         this.configCSS = config.configCSS || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/style.css';
-        this.sendEndPoint = config.sendEndPoint || 'api/Project/STDV/ChatBot/Chat/send';
+        this.sendEndPoint = config.sendEndPoint || 'api/Extra/ChatBot/Chat/send';
         if (typeof jQuery === 'undefined') {
             this.loadScript('https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/js/jquery.min.js', () => {
                 console.log("jQuery is loaded.");
             });
         }
+        this.processedElements = new Set();
 
         this.loadCSS(this.configCSS);
         this.loadCSS('https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/bootstrap-glyphicons.css');
@@ -101,6 +104,12 @@ class ChatWindow {
                 chatWindow.remove();
             }
         });
+
+        document.addEventListener('click', function (event) {
+            if (event.target.classList.contains('other-info')) {
+                that.handleQuestDetail(event.target);
+            }
+        });
     }
 
     createElement(tag, classNames, attributes = {}) {
@@ -177,7 +186,7 @@ class ChatWindow {
             <div class="name text-bold">${this.title}</div> <div class="time first-mess">${curDay}</div>
         </div>
         <div class="item-bottom">
-            <div class="title">${this?.defaultMessage ? this.defaultMessage : 'Xin chào anh/chị. Em là Trợ Lý Ảo của Sở Thông Tin và Truyền Thông Hải Dương. Anh/Chị có cần hỗ trợ gì về các thủ tục hành chính của Tỉnh Hải Dương không ạ?'}</div>
+            <div class="title">${this.defaultMessage}</div>
         </div>
     </div>`;
 
@@ -188,15 +197,15 @@ class ChatWindow {
             style: 'flex-direction: column'
         });
 
-        const hiddenInput = this.createElement('input', '', {
+        /* const hiddenInput = this.createElement('input', '', {
             type: 'hidden',
             name: 'roomId',
-        });
+        }); */
         const actions = this.createElement('div', 'list-action-chat full-width d-flex relative');
         actions.innerHTML = `<div id="input-message" contenteditable="true" class="message-content border-solid border-gray-lighten message-contentChatBot" name="title"></div><div><button type="button" class="submit submit-button">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.249 2.286 C 1.671 2.389,1.266 2.892,1.274 3.494 C 1.279 3.866,1.255 3.789,2.750 8.245 L 4.020 12.030 3.914 12.345 C 3.856 12.518,3.245 14.334,2.556 16.380 C 1.370 19.904,1.303 20.118,1.288 20.444 C 1.274 20.730,1.285 20.819,1.355 20.977 C 1.490 21.283,1.661 21.465,1.941 21.603 C 2.156 21.709,2.241 21.729,2.469 21.727 C 2.791 21.723,3.060 21.635,3.880 21.269 C 16.421 15.657,21.698 13.292,21.877 13.201 C 22.394 12.938,22.597 12.708,22.708 12.257 C 22.766 12.022,22.766 11.978,22.708 11.743 C 22.597 11.292,22.394 11.061,21.880 10.801 C 21.462 10.589,3.379 2.508,3.080 2.399 C 2.737 2.275,2.494 2.242,2.249 2.286 M11.970 7.992 C 16.870 10.185,20.880 11.989,20.880 12.001 C 20.880 12.035,2.955 20.048,2.931 20.024 C 2.919 20.013,3.457 18.378,4.126 16.392 L 5.342 12.780 8.121 12.760 L 10.900 12.740 11.051 12.646 C 11.270 12.510,11.338 12.357,11.339 12.000 C 11.340 11.642,11.246 11.452,11.009 11.334 C 10.869 11.264,10.695 11.259,8.094 11.248 L 5.328 11.237 4.124 7.637 C 3.462 5.657,2.920 4.018,2.920 3.994 C 2.920 3.970,2.950 3.963,2.990 3.978 C 3.029 3.993,7.070 5.799,11.970 7.992 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></button></div>`;
 
-        form.appendChild(hiddenInput);
+        // form.appendChild(hiddenInput);
         form.appendChild(actions);
         footer.appendChild(form);
 
@@ -225,6 +234,7 @@ class ChatWindow {
             elapsedSeconds
         };
     }
+
     notag(value) {
         if (value && typeof (value) === 'string') {
             value = value.replace(/&/g, '&amp;').replace(/'/g, '&#x27;')
@@ -299,14 +309,17 @@ class ChatWindow {
             if (event.which === 13 && !event.shiftKey) {
                 event.preventDefault();
                 if ($(this).val() || textHTML.html()) {
-                    that.submitFunc(that.site, textHTML);
+                    if (that.botOtherInfo && that.botOtherInfo.length) {
+                        that.handleBotOtherInfo(textHTML.html());
+                    } else {
+                        that.submitFunc(that.site, textHTML);
+                    }
                 } else {
                     that.alert("Vui lòng nhập nội dung", {
                         delay: 3000,
                         type: 'error'
                     });
                 }
-                $('.changeHasImage').addClass('hidden');
                 return false;
             }
         });
@@ -315,9 +328,12 @@ class ChatWindow {
             const textHTML = $(this).parents('form').find('div[contenteditable="true"]:first');
             event.preventDefault();
 
-            if (textHTML.html() || that.file) {
-                that.submitFunc(that.site, textHTML);
-                $('.changeHasImage').addClass('hidden');
+            if (textHTML.html()) {
+                if (that.botOtherInfo && that.botOtherInfo.length) {
+                    that.handleBotOtherInfo(textHTML.html());
+                } else {
+                    that.submitFunc(that.site, textHTML);
+                }
             } else {
                 that.alert("Vui lòng nhập nội dung", {
                     delay: 3000,
@@ -325,10 +341,16 @@ class ChatWindow {
                 });
             }
             return false;
-        }).on('click', '.chatBotOtherQuest', function (event) {
-            event.preventDefault();
-            that.submitOption($(this));
         });
+    }
+
+    handleBotOtherInfo(str) {
+        for (let i of this.botOtherInfo) {
+            if (str.toLowerCase() === i.toLowerCase()) document.querySelector(`.other-info[data-title="${i}"]`).click();
+        }
+        setTimeout(() => {
+            document.getElementById('input-message').innerHTML = '';
+        }, 100);
     }
 
     handleScrollUp() {
@@ -379,6 +401,7 @@ class ChatWindow {
     }
 
     async submitFunc(site, el, isOption = false) {
+        let that = this;
         let rawContent = el.html();
         let decodedContent = this.decodeHTMLEntities(rawContent);
         let sanitizedContent = this.stripTagsKeepText(decodedContent);
@@ -404,6 +427,7 @@ class ChatWindow {
                         type: 'error'
                     });
                 } else {
+                    that.addBotSingleMessage(that.defaultErrMsg);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
             } else {
@@ -413,7 +437,6 @@ class ChatWindow {
                 while (!initialMessageAdded) {
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
-
                 await this.addMessage(res, sanitizedContent);
             }
         } catch (error) {
@@ -445,7 +468,23 @@ class ChatWindow {
         });
     }
 
-    async addMessage(res, input, isAuto = false, autoArr = {}) {
+    addBotSingleMessage(str) {
+        let botNewMessage = this.createElement('div'),
+            chatContainer = document.querySelector('.list-message-chat'),
+            that = this,
+            time = parseInt(new Date(that.lastMessageTime).getTime(), 10) + that.msgInterval;
+        let lastBotMsg = document.querySelector('.message-item:not(.me-message):last-of-type'),
+            botImg = lastBotMsg.querySelector('.item-img img').getAttribute('src'),
+            botFullName = lastBotMsg.querySelector('.item-content .item-top .name').innerText;
+        botNewMessage.className = `message bot-default-msg message-item margin-bottom-md d-flex today comment-item chat-message`;
+
+        botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName}</div> <div class="time bot-default-msg-time bot-time" data-time="${time / 1000}">Vừa xong</div></div><div class="item-bottom"><div class="title">${str ?? ''}</div></div></div>`;
+
+        chatContainer.appendChild(botNewMessage);
+        this.scrollBottom();
+    }
+
+    async addMessage(res, input, isAuto = false, detailVal = {}) {
         let newMessage = this.createElement('div'),
             botNewMessage = this.createElement('div'),
             chatContainer = document.querySelector('.list-message-chat'),
@@ -456,14 +495,12 @@ class ChatWindow {
         newMessage.className = `message message-item margin-bottom-md d-flex today me-message comment-item chat-message`;
         botNewMessage.className = `message message-item margin-bottom-md d-flex today comment-item chat-message`;
 
-
         let updateTime = (timeEl, createdTime, currentTime) => {
             let timeDifference = currentTime - createdTime,
                 timeDifferenceInSeconds = Math.floor(timeDifference / 1000),
                 timeDifferenceInMinutes = Math.floor(timeDifferenceInSeconds / 60),
                 timeDifferenceInHours = Math.floor(timeDifferenceInMinutes / 60),
                 timeDifferenceInDays = Math.floor(timeDifferenceInHours / 24);
-
             let displayText;
             if (timeDifferenceInDays > 0) {
                 displayText = `${timeDifferenceInDays} ngày trước`;
@@ -474,7 +511,7 @@ class ChatWindow {
             } else {
                 displayText = `${timeDifferenceInSeconds} giây trước`;
             }
-
+            // console.log(timeEl, createdTime, currentTime, timeDifference);
             timeEl.textContent = displayText;
         };
 
@@ -485,25 +522,37 @@ class ChatWindow {
             botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botRes.fullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${res.botAnswer.createdTime}">Vừa xong</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
 
             chatContainer.appendChild(botNewMessage);
-            if (res.botAnswer.otherInfo) {
+            if (res.botAnswer.otherInfo && Object.keys(res.botAnswer.otherInfo).length) {
+                console.log(res.botAnswer.otherInfo);
                 let otherInfo = res.botAnswer.otherInfo;
-                for (let i of otherInfo) {
-                    let modifiedData = that.replaceQuotesInTags(i.data);
-                    botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-title="${i.title}" data-title="${i.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${i.title}</a>`);
+                /* for (let [key, value] of Object.entries(otherInfo)) { //Từ index để demo array, set data-index
+                    console.log(value, key);
+                    let modifiedData = that.replaceQuotesInTags(key);
+                    botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-title="${i.title}" data-index="${index}" data-title="${i.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${i.title}</a>`);
+                     let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
+                    if (curItem) {
+                        that.processNestedData(i, curItem, index);
+                    } 
+                } */
+                // delete otherInfo.title;
+                // delete otherInfo.data;
+                let otherInfoEntries = Object.entries(otherInfo);
+                for (let [index, [key, val]] of Object.entries(otherInfoEntries)) {
+                    let newObj = val;
+                    delete newObj.title;
+                    delete newObj.data;
+                    let modifiedData = that.capitalizeFirstLetter(that.replaceQuotesInTags(key));
+                    botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-title="${modifiedData}" data-index="${index}" data-full-name="${res.fullName ?? 'Bạn'}">${modifiedData}</a>`);
+                    let curItem = botNewMessage.querySelector(`.other-info[data-title="${modifiedData}"]`);
+                    if (curItem) {
+                        that.processNestedData(newObj, curItem, index);
+                    }
+                    /*  let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
+                     if (curItem) {
+                         that.processNestedData(i, curItem, idx);
+                     } */
                 }
-                that.handleQuestDetail();
             }
-            /* let prevMeMessage = botNewMessage.previousElementSibling;
-            while (prevMeMessage && !prevMeMessage.classList.contains('me-message')) {
-                prevMeMessage = prevMeMessage.previousElementSibling;
-            }
-
-            if (prevMeMessage) {
-                const prevMeTimeElement = prevMeMessage.querySelector('.time');
-                if (prevMeTimeElement) {
-                    prevMeTimeElement.setAttribute('data-time', res.createdTime);
-                }
-            } */
             this.scrollBottom();
         }
 
@@ -517,10 +566,10 @@ class ChatWindow {
                 const serverTime = response.headers.get('Date');
                 if (serverTime) {
                     serverStartTime = new Date(serverTime).getTime();
+                    that.serverStartTime = parseInt(new Date(serverStartTime).getTime(), 10);
                 } else {
-                    const end = Date.now();
-                    const rtt = end - start;
-                    serverStartTime = start + rtt / 2;
+                    serverStartTime = Date.now();
+                    that.serverStartTime = Date.now();
                 }
                 clientStartTime = Date.now();
             } catch (error) {
@@ -538,24 +587,54 @@ class ChatWindow {
         }
         if (isAuto) {
             await fetchServerTime();
-            let userQuest = autoArr.title ?? '',
-                botRes = autoArr.content ?? '',
-                botFullName = autoArr.botFullName ?? '',
-                userFullName = autoArr.fullName ?? '';
-
-            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png'}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(serverStartTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
+            let userQuest = detailVal.title ?? '',
+                botRes = detailVal.content ?? '',
+                botFullName = detailVal.botFullName ?? '',
+                userFullName = detailVal.fullName ?? '',
+                subData = detailVal.subData;
+            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(serverStartTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
             chatContainer.appendChild(newMessage);
-            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(serverStartTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botRes ?? ''}</div></div></div>`;
+            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(serverStartTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botRes ?? ''}</div></div></div>`;
             that.trimBrTags(newMessage.getElementsByClassName('title'));
             that.trimBrTags(botNewMessage.getElementsByClassName('title'));
             chatContainer.appendChild(botNewMessage);
+            if (subData) {
+                let entriedSubData = Object.entries(subData);
+                for (let [index, [key, val]] of Object.entries(entriedSubData)) {
+                    let subArr = JSON.parse(val);
+                    let modifiedData;
+                    if (!that.isNestedObject(subArr)) {
+                        modifiedData = that.replaceQuotesInTags(subArr.data);
+                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
+
+                        let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
+                        if (curItem && that.isNestedObject(subArr)) {
+                            that.processNestedData(subArr, curItem, index);
+                        }
+                    } else {
+                        console.log(val, JSON.stringify(subArr), 123123);
+                        modifiedData = JSON.stringify(subArr);
+                        /*  botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${subArr[0].file.data}" data-index="${index}" data-title="${subArr[0].title.data}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr[0].title.data}</a>`); */
+                        /* for (const [idx, [key, value]] of Object.entries(Object.entries(modifiedData))) {
+                            console.log(`${idx}: ${value}`);
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${subArr[0].title.file}" data-index="${idx}" data-title="${subArr[0].title.data}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr[0].title.data}</a>`);
+                        } */
+                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
+
+                        let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
+                        if (curItem && that.isNestedObject(subArr)) {
+                            that.processNestedData(subArr, curItem, index, true);
+                        }
+                    }
+
+                }
+            }
+
             setTimeout(() => {
                 that.scrollBottom();
             }, 100);
         }
 
-        this.lastMessageTime = new Date(res.botAnswer && res.botAnswer.createdTime ? res.botAnswer.createdTime * 1000 : serverStartTime);
-        console.log(this);
         let updateTimeInterval = () => {
             if (!serverStartTime || !clientStartTime) return;
 
@@ -580,7 +659,55 @@ class ChatWindow {
                 }, 60000);
             }, 3600000);
         })();
+        this.lastMessageTime = new Date(res.botAnswer && res.botAnswer.createdTime ? res.botAnswer.createdTime * 1000 : serverStartTime);
+        const lastMessageTime = this.lastMessageTime;
+        setTimeout(() => {
+            if (this.lastMessageTime === lastMessageTime) {
+                that.addBotSingleMessage(that.endConvMsg);
+            }
+        }, this.msgInterval); //bắn msg sau configured giây
+    }
 
+    isNestedObject(obj) {
+        return Object.values(obj).some(value => typeof value === 'object' && !Array.isArray(value));
+    }
+
+    capitalizeFirstLetter(str) {
+        return str[0].toUpperCase() + str.slice(1);
+    }
+
+    processNestedData(data, parentElement, index = 0, checkNum) {
+        let that = this;
+        let entriedData = Object.entries(data);
+        for (const [i, [key, val]] of entriedData.entries()) {
+            console.log(i, key, val, !/^\d+$/.test(key));
+            if (key !== 'title' && key !== 'data' && (!checkNum || !/^\d+$/.test(key))) {
+                const camelCaseKey = that.toCamelCase(`${index}-${i}-arr`);
+                if (typeof val === 'object' && !Array.isArray(val)) {
+                    parentElement.dataset[camelCaseKey] = JSON.stringify(val);
+                    that.processNestedData(val, parentElement, `${index}-${i}-arr`);
+                } else if (Array.isArray(val)) {
+                    parentElement.dataset[camelCaseKey] = JSON.stringify(val);
+                    /* val.forEach((item, idx) => {
+                        that.processNestedData(item, parentElement, `${index}-${idx}-arr`);
+                    }); */
+                } else {
+                    parentElement.dataset[camelCaseKey] = val;
+                }
+            }
+        }
+    }
+
+    toCamelCase(str) {
+        return str.replace(/-([a-z])/g, function (g) { return g[1].toUpperCase(); });
+    }
+
+    extractDataAttr(array) {
+        return array.map(item => item.title);
+    }
+
+    handleLastMsg(time) {
+        setInterval;
     }
 
     trimBrTags(selector) {
@@ -589,21 +716,27 @@ class ChatWindow {
         }
     }
 
-    handleQuestDetail() {
+    handleQuestDetail(el) {
         let that = this;
-        let questDetail = document.getElementsByClassName('other-info');
+        let detailVal = {
+            title: el.dataset.title,
+            content: el.dataset.content,
+            botFullName: el.dataset.botFullName,
+            fullName: el.dataset.fullName,
+            subData: that.getDatasetEndWithArr(el)
+        };
+        console.log(el, that.getDatasetEndWithArr(el));
+        that.addMessage({}, '', true, detailVal);
+    }
 
-        for (let i of questDetail) {
-            i.addEventListener('click', function () {
-                let detailVal = {
-                    title: this.dataset.title,
-                    content: this.dataset.content,
-                    botFullName: this.dataset.botFullName,
-                    fullName: this.dataset.fullName
-                };
-                that.addMessage({}, '', true, detailVal);
-            });
+    getDatasetEndWithArr(el) {
+        const datasets = {};
+        for (const [key, value] of Object.entries(el.dataset)) {
+            if (key.endsWith('Arr')) {
+                datasets[key] = value;
+            }
         }
+        return datasets;
     }
 
     getDay() {
