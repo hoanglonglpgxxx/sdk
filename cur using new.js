@@ -6,24 +6,26 @@ class ChatWindow {
         this.title = config.title || 'Trợ lý ảo';
         this.defaultMessage = config.defaultMessage || 'Xin chào anh/chị. Tôi là Trợ Lý Ảo của Sở Thông Tin và Truyền Thông Hải Dương. Anh/Chị cần hỗ trợ gì về các thủ tục hành chính của Tỉnh Hải Dương không ạ?';
         this.lastMessageTime = null;
+        this.basePerformanceTime = null;
+        this.serverTimeInitialized = false;
         this.serverStartTime = null;
         this.defaultErrMsg = "Trợ lý ảo hiện không thể phản hồi, vui lòng thử lại sau.";
         this.endConvMsg = config.endConvMsg || 'Cảm ơn anh/chị đã quan tâm!';
         this.msgInterval = parseInt(config.msgInterval, 10) ?? 60000;
         this.configCSS = config.configCSS || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/style.css';
+        this.jqueryPath = config.jqueryPath || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/js/jquery.min.js';
+        this.bootstrapIconPath = config.bootstrapIconPath || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/bootstrap-glyphicons.css';
         this.sendEndPoint = config.sendEndPoint || 'api/Extra/ChatBot/Chat/send';
         if (typeof jQuery === 'undefined') {
-            this.loadScript('https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/js/jquery.min.js', () => {
-                console.log("jQuery is loaded.");
-            });
+            this.loadScript(jqueryPath);
         }
         this.processedElements = new Set();
 
         this.loadCSS(this.configCSS);
-        this.loadCSS('https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/bootstrap-glyphicons.css');
+        this.loadCSS(bootstrapIconPath);
         this.setRootCSS('primary', config.primary ?? 'blue');
 
-        let p = `<div id="chat-GPT" class="chatGPT-icon chatbot-icon"><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="${this.bigIconChat}" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
+        let p = `<div id="chat-GPT" class="chatGPT-icon chatbot-icon"><div class="icon-container"></div><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="${this.bigIconChat}" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
         document.body.innerHTML += p;
 
         this.initEvents();
@@ -309,7 +311,9 @@ class ChatWindow {
             if (event.which === 13 && !event.shiftKey) {
                 event.preventDefault();
                 if ($(this).val() || textHTML.html()) {
-                    if (that.botOtherInfo && that.botOtherInfo.length) {
+                    if (that.botOtherInfo && Object.keys(that.botOtherInfo).length
+                        && (that.hasKey(that.botOtherInfo, textHTML.html()) ||
+                            that.botOtherInfo?.title?.toLowerCase() === textHTML.html().toLowerCase())) {
                         that.handleBotOtherInfo(textHTML.html());
                     } else {
                         that.submitFunc(that.site, textHTML);
@@ -329,7 +333,7 @@ class ChatWindow {
             event.preventDefault();
 
             if (textHTML.html()) {
-                if (that.botOtherInfo && that.botOtherInfo.length) {
+                if (that.botOtherInfo && Object.keys(that.botOtherInfo).length && that.hasKey(that.botOtherInfo, $(this).val())) {
                     that.handleBotOtherInfo(textHTML.html());
                 } else {
                     that.submitFunc(that.site, textHTML);
@@ -345,12 +349,37 @@ class ChatWindow {
     }
 
     handleBotOtherInfo(str) {
-        for (let i of this.botOtherInfo) {
-            if (str.toLowerCase() === i.toLowerCase()) document.querySelector(`.other-info[data-title="${i}"]`).click();
+        const elements = document.querySelectorAll(`.other-info[data-normal-title="${str}"]`);
+        const lastElement = elements[elements.length - 1];
+
+        if (lastElement) {
+            lastElement.click();
         }
+
         setTimeout(() => {
             document.getElementById('input-message').innerHTML = '';
         }, 100);
+    }
+
+    hasKey(obj, str) {
+        const lowerCaseKey = str.toLowerCase();
+
+        function search(obj) {
+            for (const key in obj) {
+                if (key.toLowerCase() === lowerCaseKey) {
+                    return true;
+                }
+
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    if (search(obj[key])) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        return search(obj);
     }
 
     handleScrollUp() {
@@ -432,8 +461,6 @@ class ChatWindow {
                 }
             } else {
                 const res = await response.json();
-                let newMessage = this.createElement('div');
-                let botAnswer = res.botAnswer;
                 while (!initialMessageAdded) {
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
@@ -523,108 +550,156 @@ class ChatWindow {
 
             chatContainer.appendChild(botNewMessage);
             if (res.botAnswer.otherInfo && Object.keys(res.botAnswer.otherInfo).length) {
-                console.log(res.botAnswer.otherInfo);
                 let otherInfo = res.botAnswer.otherInfo;
-                /* for (let [key, value] of Object.entries(otherInfo)) { //Từ index để demo array, set data-index
-                    console.log(value, key);
-                    let modifiedData = that.replaceQuotesInTags(key);
-                    botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-title="${i.title}" data-index="${index}" data-title="${i.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${i.title}</a>`);
-                     let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
-                    if (curItem) {
-                        that.processNestedData(i, curItem, index);
-                    } 
-                } */
-                // delete otherInfo.title;
-                // delete otherInfo.data;
+                that.botOtherInfo = otherInfo;
                 let otherInfoEntries = Object.entries(otherInfo);
                 for (let [index, [key, val]] of Object.entries(otherInfoEntries)) {
                     let newObj = val;
-                    delete newObj.title;
-                    delete newObj.data;
+
                     let modifiedData = that.capitalizeFirstLetter(that.replaceQuotesInTags(key));
-                    botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-title="${modifiedData}" data-index="${index}" data-full-name="${res.fullName ?? 'Bạn'}">${modifiedData}</a>`);
-                    let curItem = botNewMessage.querySelector(`.other-info[data-title="${modifiedData}"]`);
-                    if (curItem) {
-                        that.processNestedData(newObj, curItem, index);
+
+                    if (!that.isNestedObject(val)) {
+                        // let cusObj = JSON.parse(val);
+                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${that.replaceQuotesInTags(val.data)}" data-index="${index}" data-title="${val.title}" data-normal-title="${val.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${val.title}</a>`);
+                        let curItem = botNewMessage.querySelector(`.other-info[data-title="${val.title}"]`);
+                        if (curItem) {
+                            that.processNestedData(newObj, curItem, index);
+                        }
+                    } else {
+                        // delete newObj.title;
+                        // delete newObj.data;
+                        // console.log(key, val, typeof val);
+                        if (that.hasNumericKeys(val)) {
+                            modifiedData = JSON.stringify(val).replace(/"/g, '&quot;');
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data" data-content-arr="${modifiedData}" data-index="${index}" data-title="${newObj.title}" data-normal-title="${newObj.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${newObj.title}</a>`);
+                        } else {
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-title="${modifiedData}" data-normal-title="${modifiedData.toLowerCase()}" data-index="${index}" data-full-name="${res.fullName ?? 'Bạn'}">${modifiedData}</a>`);
+                            let curItem = botNewMessage.querySelector(`.other-info[data-title="${modifiedData}"]`);
+                            if (curItem) {
+                                that.processNestedData(newObj, curItem, index);
+                            }
+                        }
+
+                        /*
+                                                modifiedData = JSON.stringify(val).replace(/"/g, '&quot;');
+                                                botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data" data-content-arr="${modifiedData}" data-index="${index}" data-title="${val.title}" data-normal-title="${val.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${val.title}</a>`); */
+                        /*   */
                     }
-                    /*  let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
-                     if (curItem) {
-                         that.processNestedData(i, curItem, idx);
-                     } */
                 }
+            }
+
+            if (res && !Object.keys(res.botAnswer.otherInfo).length && !res.botAnswer.otherInfo.length) {
+                that.botOtherInfo = {};
             }
             this.scrollBottom();
         }
 
-        let serverStartTime = null;
         let clientStartTime = null;
-
         let fetchServerTime = async () => {
+            if (that.serverTimeInitialized) return;
+
             try {
-                const start = Date.now();
                 const response = await fetch('/');
                 const serverTime = response.headers.get('Date');
+
                 if (serverTime) {
-                    serverStartTime = new Date(serverTime).getTime();
-                    that.serverStartTime = parseInt(new Date(serverStartTime).getTime(), 10);
+                    that.serverStartTime = new Date(serverTime).getTime();
+                    that.basePerformanceTime = performance.now();
+                    that.serverTimeInitialized = true;
                 } else {
-                    serverStartTime = Date.now();
-                    that.serverStartTime = Date.now();
+                    throw new Error("Server time not available");
                 }
-                clientStartTime = Date.now();
             } catch (error) {
-                console.error("Failed to fetch server time", error);
-                serverStartTime = Date.now();
-                clientStartTime = Date.now();
+                console.error("Failed to fetch server time:", error);
+                that.serverStartTime = Date.now();
+                that.basePerformanceTime = performance.now();
+                that.serverTimeInitialized = true;
             }
         };
 
-        if (Object.keys(res).length === 0 && !isAuto) {
+        if (!that.serverTimeInitialized) {
             await fetchServerTime();
-            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png'}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${res.fullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(serverStartTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
+        }
+
+        let getAccurateCurrentTime = () => {
+            if (!that.serverStartTime || that.basePerformanceTime === null) {
+                return null;
+            }
+
+            const elapsed = performance.now() - that.basePerformanceTime;
+            return that.serverStartTime + elapsed;
+        };
+
+        const currentServerTime = getAccurateCurrentTime();
+        if (!currentServerTime) {
+            return;
+        }
+
+        if (Object.keys(res).length === 0 && !isAuto) {
+            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png'}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${res.fullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(currentServerTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${msg ?? ''}</div></div></div>`;
 
             chatContainer.appendChild(newMessage);
         }
         if (isAuto) {
-            await fetchServerTime();
             let userQuest = detailVal.title ?? '',
                 botRes = detailVal.content ?? '',
                 botFullName = detailVal.botFullName ?? '',
                 userFullName = detailVal.fullName ?? '',
                 subData = detailVal.subData;
-            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(serverStartTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
+            newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(currentServerTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
             chatContainer.appendChild(newMessage);
-            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(serverStartTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botRes ?? ''}</div></div></div>`;
+            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botRes ?? ''}</div></div></div>`;
             that.trimBrTags(newMessage.getElementsByClassName('title'));
             that.trimBrTags(botNewMessage.getElementsByClassName('title'));
             chatContainer.appendChild(botNewMessage);
+            /* subData = {
+                "0": {
+                    "title": {
+                        "title": "title",
+                        "data": "Tờ khai ghi chú ly hôn theo mẫu (nếu người có yêu cầu lựa chọn nộp hồ sơ theo hình thức trực tiếp)"
+                    },
+                    "data": "",
+                    "file": {
+                        "title": "file",
+                        "data": "tttl/30/giayto/2024_09/1725595787_9-_TK_ghi_chu_ly_hon.doc"
+                    },
+                    "sortOrder": {
+                        "title": "sortOrder",
+                        "data": "1"
+                    }
+                }
+            } */
             if (subData) {
                 let entriedSubData = Object.entries(subData);
                 for (let [index, [key, val]] of Object.entries(entriedSubData)) {
-                    let subArr = JSON.parse(val);
+                    let subArr = detailVal.nestedArr ? val : JSON.parse(val);
                     let modifiedData;
                     if (!that.isNestedObject(subArr)) {
                         modifiedData = that.replaceQuotesInTags(subArr.data);
-                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
+                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
 
                         let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
                         if (curItem && that.isNestedObject(subArr)) {
                             that.processNestedData(subArr, curItem, index);
                         }
                     } else {
-                        console.log(val, JSON.stringify(subArr), 123123);
-                        modifiedData = JSON.stringify(subArr);
-                        /*  botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${subArr[0].file.data}" data-index="${index}" data-title="${subArr[0].title.data}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr[0].title.data}</a>`); */
-                        /* for (const [idx, [key, value]] of Object.entries(Object.entries(modifiedData))) {
-                            console.log(`${idx}: ${value}`);
-                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${subArr[0].title.file}" data-index="${idx}" data-title="${subArr[0].title.data}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr[0].title.data}</a>`);
-                        } */
-                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
-
-                        let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
-                        if (curItem && that.isNestedObject(subArr)) {
-                            that.processNestedData(subArr, curItem, index, true);
+                        modifiedData = detailVal.nestedArr ? val : JSON.stringify(subArr).replace(/"/g, '&quot;');
+                        if (detailVal.nestedArr) {
+                            modifiedData = val;
+                            let botContent = '';
+                            for (let [nestedKey, nestedVal] of Object.entries(val)) {
+                                if (nestedKey !== 'sortOrder') botContent += (nestedVal.data ?? '') + '<br>';
+                            }
+                            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botContent.trim() ?? ''}</div></div></div>`;
+                        } else {
+                            modifiedData = JSON.stringify(subArr).replace(/"/g, '&quot;');
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data" data-content-arr="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
                         }
+
+                        /*   let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
+                          if (curItem && that.isNestedObject(subArr)) {
+                              that.processNestedData(subArr, curItem, index, true);
+                          } */
                     }
 
                 }
@@ -636,10 +711,10 @@ class ChatWindow {
         }
 
         let updateTimeInterval = () => {
-            if (!serverStartTime || !clientStartTime) return;
+            if (!that.serverStartTime || !clientStartTime) return;
 
             const elapsed = Date.now() - clientStartTime;
-            const currentTime = serverStartTime + elapsed;
+            const currentTime = that.serverStartTime + elapsed;
 
             document.querySelectorAll('.time:not(.first-mess)[data-time]').forEach(timeEl => {
                 let createdTime = new Date(timeEl.dataset.time * 1000);
@@ -648,24 +723,32 @@ class ChatWindow {
         };
 
         (async () => {
-            await fetchServerTime();
-
-            let updateTimeIntervalId = setInterval(updateTimeInterval, 1000);
-            setTimeout(() => {
-                clearInterval(updateTimeIntervalId);
-                updateTimeIntervalId = setInterval(async () => {
-                    //await fetchServerTime();
-                    updateTimeInterval();
-                }, 60000);
-            }, 3600000);
+            setInterval(() => {
+                const currentAccurateTime = getAccurateCurrentTime();
+                if (currentAccurateTime) {
+                    document.querySelectorAll('.time:not(.first-mess)[data-time]').forEach(timeEl => {
+                        const createdTime = new Date(timeEl.dataset.time * 1000);
+                        updateTime(timeEl, createdTime, currentAccurateTime);
+                    });
+                }
+            }, 1000);
         })();
-        this.lastMessageTime = new Date(res.botAnswer && res.botAnswer.createdTime ? res.botAnswer.createdTime * 1000 : serverStartTime);
+        this.lastMessageTime = new Date(res.botAnswer && res.botAnswer.createdTime ? res.botAnswer.createdTime * 1000 : currentServerTime);
         const lastMessageTime = this.lastMessageTime;
         setTimeout(() => {
             if (this.lastMessageTime === lastMessageTime) {
                 that.addBotSingleMessage(that.endConvMsg);
             }
-        }, this.msgInterval); //bắn msg sau configured giây
+        }, this.msgInterval);
+    }
+
+    hasNumericKeys(obj) {
+        for (const key in obj) {
+            if (/^\d+$/.test(key)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     isNestedObject(obj) {
@@ -676,21 +759,17 @@ class ChatWindow {
         return str[0].toUpperCase() + str.slice(1);
     }
 
-    processNestedData(data, parentElement, index = 0, checkNum) {
+    processNestedData(data, parentElement, index = 0) {
         let that = this;
         let entriedData = Object.entries(data);
         for (const [i, [key, val]] of entriedData.entries()) {
-            console.log(i, key, val, !/^\d+$/.test(key));
-            if (key !== 'title' && key !== 'data' && (!checkNum || !/^\d+$/.test(key))) {
+            if (key !== 'title' && key !== 'data' && !/^\d+$/.test(key)) {
                 const camelCaseKey = that.toCamelCase(`${index}-${i}-arr`);
                 if (typeof val === 'object' && !Array.isArray(val)) {
                     parentElement.dataset[camelCaseKey] = JSON.stringify(val);
                     that.processNestedData(val, parentElement, `${index}-${i}-arr`);
                 } else if (Array.isArray(val)) {
                     parentElement.dataset[camelCaseKey] = JSON.stringify(val);
-                    /* val.forEach((item, idx) => {
-                        that.processNestedData(item, parentElement, `${index}-${idx}-arr`);
-                    }); */
                 } else {
                     parentElement.dataset[camelCaseKey] = val;
                 }
@@ -704,10 +783,6 @@ class ChatWindow {
 
     extractDataAttr(array) {
         return array.map(item => item.title);
-    }
-
-    handleLastMsg(time) {
-        setInterval;
     }
 
     trimBrTags(selector) {
@@ -725,7 +800,13 @@ class ChatWindow {
             fullName: el.dataset.fullName,
             subData: that.getDatasetEndWithArr(el)
         };
-        console.log(el, that.getDatasetEndWithArr(el));
+        if (el.classList.contains('sub-data')) {
+            let contentArr = JSON.parse(el.dataset.contentArr);
+            delete contentArr.title;
+            delete contentArr.data;
+            detailVal.nestedArr = '1';
+            detailVal.subData = contentArr;
+        }
         that.addMessage({}, '', true, detailVal);
     }
 
