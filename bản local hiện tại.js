@@ -4,14 +4,15 @@ class ChatWindow {
         this.chatGPTImg = config.chatGPTImg ?? 'https://haiduong-chatbot.coquan.net/upload/2006916/20250102/Group_0daaf.png';
         this.bigIconChat = config.bigIconChat ?? 'https://haiduong-chatbot.coquan.net/upload/2006916/20250102/bot_main_img_c172f.png';
         this.title = config.title || 'Trợ lý ảo';
-        this.defaultBotMessage = config.defaultBotMessage || 'Xin chào anh/chị. Tôi là trợ lý ảo của hệ thống thông tin giải quyết thủ tục hành chính tỉnh Hải Dương. Anh/Chị cần hỗ trợ gì về các thủ tục hành chính của tỉnh Hải Dương không ạ?';
+        this.defaultBotMessage = config.defaultBotMessage || 'Xin chào anh/chị. Tôi là trợ lý ảo của hệ thống thông tin giải quyết thủ tục hành chính tỉnh Hải Dương. Tôi có thể hỗ trợ anh/chị về Thủ tục hành chính, Tra cứu thông tin hồ sơ và Văn bản pháp luật. Anh/chị cần hỗ trợ nội dung gì ạ?';
         this.lastMessageTime = null;
         this.basePerformanceTime = null;
         this.serverTimeInitialized = false;
         this.serverStartTime = null;
         this.defaultErrMsg = "Trợ lý ảo hiện không thể phản hồi, vui lòng thử lại sau.";
         this.endConvMsg = config.endConvMsg || 'Cảm ơn anh/chị đã quan tâm!';
-        this.msgInterval = parseInt(config.msgInterval, 10) || 60000;
+        this.bitelChatbot = config.bitelChatbot || false,
+            this.msgInterval = parseInt(config.msgInterval, 10) || 60000;
         this.configCSS = config.configCSS || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/style.css';
         this.jqueryPath = config.jqueryPath || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/js/jquery.min.js';
         this.bootstrapIconPath = config.bootstrapIconPath || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/bootstrap-glyphicons.css';
@@ -24,7 +25,10 @@ class ChatWindow {
         this.processedElements = new Set();
 
         this.loadCSS(this.configCSS);
-        this.loadCSS(this.bootstrapIconPath);
+        if (!this.bitelChatbot) {
+            this.loadCSS(this.bootstrapIconPath);
+        }
+
         this.setRootCSS('primary', config.primary ?? 'blue');
 
         let p = `<div id="chat-GPT" class="chatGPT-icon chatbot-icon"><div class="icon-container"></div><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="${this.bigIconChat}" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
@@ -316,7 +320,7 @@ class ChatWindow {
                     if (that.botOtherInfo && Object.keys(that.botOtherInfo).length
                         && (that.hasKey(that.botOtherInfo, textHTML.html()) ||
                             that.botOtherInfo?.title?.toLowerCase() === textHTML.html().toLowerCase())) {
-                        that.handleBotOtherInfo(textHTML.html());
+                        that.handleBotOtherInfo(textHTML.html().toLowerCase());
                     } else {
                         that.submitFunc(that.site, textHTML);
                     }
@@ -336,7 +340,7 @@ class ChatWindow {
 
             if (textHTML.html()) {
                 if (that.botOtherInfo && Object.keys(that.botOtherInfo).length && that.hasKey(that.botOtherInfo, $(this).val())) {
-                    that.handleBotOtherInfo(textHTML.html());
+                    that.handleBotOtherInfo(textHTML.html().toLowerCase());
                 } else {
                     that.submitFunc(that.site, textHTML);
                 }
@@ -450,7 +454,13 @@ class ChatWindow {
 
         let mountpoint = `${site}/${this.sendEndPoint}?text=${encodeURIComponent(sanitizedContent)}`;
         try {
-            const response = await fetch(mountpoint);
+            const response = await fetch(`${site}/${this.sendEndPoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: sanitizedContent })
+            });
             if (!response.ok) {
                 if (response.status === 504) {
                     this.alert("Máy chủ hiện không phản hồi. Vui lòng thử lại sau.", {
@@ -502,9 +512,9 @@ class ChatWindow {
             chatContainer = document.querySelector('.list-message-chat'),
             that = this,
             time = parseInt(new Date(that.lastMessageTime).getTime(), 10) + that.msgInterval;
-        let lastBotMsg = document.querySelector('.message-item:not(.me-message):last-of-type') || document.querySelector('.message-item:last-of-type'),
-            botImg = lastBotMsg.querySelector('.item-img img').getAttribute('src'),
-            botFullName = lastBotMsg.querySelector('.item-content .item-top .name').innerText;
+        let lastBotMsg = document.querySelector('.message-item:not(.me-message):last-of-type'),
+            botImg = lastBotMsg?.querySelector('.item-img img').getAttribute('src') || that.chatGPTImg,
+            botFullName = lastBotMsg?.querySelector('.item-content .item-top .name').innerText || that.title;
         botNewMessage.className = `message bot-default-msg message-item margin-bottom-md d-flex today comment-item chat-message`;
 
         botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName}</div> <div class="time bot-default-msg-time bot-time" data-time="${time / 1000}">Vừa xong</div></div><div class="item-bottom"><div class="title">${str ?? ''}</div></div></div>`;
@@ -513,7 +523,7 @@ class ChatWindow {
         this.scrollBottom();
     }
 
-    async addMessage(res, input, isAuto = false, detailVal = {}) {
+    async addMessage(res, input, isAuto = false, detailVal = {}, el = null) {
         let newMessage = this.createElement('div'),
             botNewMessage = this.createElement('div'),
             chatContainer = document.querySelector('.list-message-chat'),
@@ -540,7 +550,6 @@ class ChatWindow {
             } else {
                 displayText = `${timeDifferenceInSeconds} giây trước`;
             }
-            // console.log(timeEl, createdTime, currentTime, timeDifference);
             timeEl.textContent = displayText;
         };
 
@@ -557,40 +566,38 @@ class ChatWindow {
                 let otherInfoEntries = Object.entries(otherInfo);
                 for (let [index, [key, val]] of Object.entries(otherInfoEntries)) {
                     let newObj = val;
-
+                    let baseStr = /Các thông tin liên quan đến (.*?)\./;
+                    let slicedString = '';
                     let modifiedData = that.capitalizeFirstLetter(that.replaceQuotesInTags(key));
+                    if (res.botAnswer?.content.includes('Các thông tin liên quan đến')) {
+                        slicedString = res.botAnswer.content.match(baseStr)[1].trim();
+                    } else {
+                        slicedString = that.notag(res.botAnswer.content);
+                    }
+                    console.log('longlh', slicedString, res.botAnswer);
 
                     if (!that.isNestedObject(val)) {
-                        // let cusObj = JSON.parse(val);
-                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${that.replaceQuotesInTags(val.data)}" data-index="${index}" data-title="${val.title}" data-normal-title="${val.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${val.title}</a>`);
+                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info al-1" data-content="${that.replaceQuotesInTags(val.data)}" data-index="${index}" data-parent-title="${slicedString ?? ''}" data-title="${val.title}" data-normal-title="${val.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1}. ${val.title}</a>`);
                         let curItem = botNewMessage.querySelector(`.other-info[data-title="${val.title}"]`);
                         if (curItem) {
                             that.processNestedData(newObj, curItem, index);
                         }
                     } else {
-                        // delete newObj.title;
-                        // delete newObj.data;
-                        // console.log(key, val, typeof val);
                         if (that.hasNumericKeys(val)) {
                             modifiedData = JSON.stringify(val).replace(/"/g, '&quot;');
-                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data" data-content-arr="${modifiedData}" data-index="${index}" data-title="${newObj.title}" data-normal-title="${newObj.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${newObj.title}</a>`);
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data al-1" data-content-arr="${modifiedData}" data-index="${index}" data-title="${newObj.title}" data-normal-title="${newObj.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1}. ${newObj.title}</a>`);
                         } else {
-                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-title="${modifiedData}" data-normal-title="${modifiedData.toLowerCase()}" data-index="${index}" data-full-name="${res.fullName ?? 'Bạn'}">${modifiedData}</a>`);
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info al-1 ah-child" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-title="${modifiedData}" data-normal-title="${modifiedData.toLowerCase()}" data-index="${index}" data-parent-index="${index}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1}. ${modifiedData}</a>`);
                             let curItem = botNewMessage.querySelector(`.other-info[data-title="${modifiedData}"]`);
                             if (curItem) {
                                 that.processNestedData(newObj, curItem, index);
                             }
                         }
-
-                        /*
-                                                modifiedData = JSON.stringify(val).replace(/"/g, '&quot;');
-                                                botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data" data-content-arr="${modifiedData}" data-index="${index}" data-title="${val.title}" data-normal-title="${val.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${val.title}</a>`); */
-                        /*   */
                     }
                 }
             }
 
-            if (res && !Object.keys(res.botAnswer.otherInfo).length && !res.botAnswer.otherInfo.length) {
+            if (res && res.botAnswer && res.botAnswer.otherInfo && !Object.keys(res.botAnswer.otherInfo).length) {
                 that.botOtherInfo = {};
             }
             this.scrollBottom();
@@ -647,30 +654,19 @@ class ChatWindow {
                 botRes = detailVal.content ?? '',
                 botFullName = detailVal.botFullName ?? '',
                 userFullName = detailVal.fullName ?? '',
-                subData = detailVal.subData;
+                subData = detailVal.subData,
+                parentTitle = detailVal.parentTitle ?? '',
+                curIndex = detailVal.index ?? '',
+                parentIdx = detailVal.parentIdx ?? '';
+            console.log('123123', botRes, el);
+            let isAttachedFormLabel = el.classList.contains('sub-data') && el.classList.contains('al-2');
+            let tempStr = (botRes.length || isAttachedFormLabel) ? `${userQuest} của ${parentTitle} là:` : `Các thông tin liên quan đến (${parseInt(curIndex ?? 0) + 1} - ${userQuest}). Click chọn thông tin.`;
             newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(currentServerTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
             chatContainer.appendChild(newMessage);
-            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botRes.replace(/(<br\s*\/?>\s*){2,}/g, '<br>') ?? ''}</div></div></div>`;
+            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${tempStr}<br>${botRes.replace(/(<br\s*\/?>\s*){2,}/g, '<br>') ?? ''}</div></div></div>`;
             that.trimBrTags(newMessage.getElementsByClassName('title'));
             that.trimBrTags(botNewMessage.getElementsByClassName('title'));
             chatContainer.appendChild(botNewMessage);
-            /* subData = {
-                "0": {
-                    "title": {
-                        "title": "title",
-                        "data": "Tờ khai ghi chú ly hôn theo mẫu (nếu người có yêu cầu lựa chọn nộp hồ sơ theo hình thức trực tiếp)"
-                    },
-                    "data": "",
-                    "file": {
-                        "title": "file",
-                        "data": "tttl/30/giayto/2024_09/1725595787_9-_TK_ghi_chu_ly_hon.doc"
-                    },
-                    "sortOrder": {
-                        "title": "sortOrder",
-                        "data": "1"
-                    }
-                }
-            } */
             if (subData) {
                 let entriedSubData = Object.entries(subData);
                 for (let [index, [key, val]] of Object.entries(entriedSubData)) {
@@ -678,7 +674,7 @@ class ChatWindow {
                     let modifiedData;
                     if (!that.isNestedObject(subArr)) {
                         modifiedData = that.replaceQuotesInTags(subArr.data);
-                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info" data-content="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
+                        botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info al-2" data-content="${modifiedData}" data-index="${index}" data-parent-index="${detailVal.index}" data-parent-title="${detailVal.title}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1}. ${subArr.title}</a>`);
 
                         let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
                         if (curItem && that.isNestedObject(subArr)) {
@@ -692,16 +688,12 @@ class ChatWindow {
                             for (let [nestedKey, nestedVal] of Object.entries(val)) {
                                 if (nestedKey !== 'sortOrder') botContent += (nestedVal.data ?? '') + '<br>';
                             }
-                            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botContent.trim() ?? ''}</div></div></div>`;
+                            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${tempStr}<br>${botContent.trim() ?? ''}</div></div></div>`;
+                            console.log(21231, botContent);
                         } else {
                             modifiedData = JSON.stringify(subArr).replace(/"/g, '&quot;');
-                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data" data-content-arr="${modifiedData}" data-index="${index}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${subArr.title}</a>`);
+                            botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data al-2" data-content-arr="${modifiedData}" data-index="${index}" data-parent-index="${detailVal.index}" data-parent-title="${detailVal.title}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1} .${subArr.title}</a>`);
                         }
-
-                        /*   let curItem = botNewMessage.querySelector(`.other-info[data-index="${index}"]`);
-                          if (curItem && that.isNestedObject(subArr)) {
-                              that.processNestedData(subArr, curItem, index, true);
-                          } */
                     }
 
                 }
@@ -798,9 +790,12 @@ class ChatWindow {
         let detailVal = {
             title: el.dataset.title,
             content: el.dataset.content,
+            index: el.dataset.index,
             botFullName: el.dataset.botFullName,
             fullName: el.dataset.fullName,
-            subData: that.getDatasetEndWithArr(el)
+            subData: that.getDatasetEndWithArr(el),
+            parentTitle: el.dataset.parentTitle,
+            parentIdx: el.dataset.parentIdx
         };
         if (el.classList.contains('sub-data')) {
             let contentArr = JSON.parse(el.dataset.contentArr);
@@ -809,7 +804,7 @@ class ChatWindow {
             detailVal.nestedArr = '1';
             detailVal.subData = contentArr;
         }
-        that.addMessage({}, '', true, detailVal);
+        that.addMessage({}, '', true, detailVal, el);
     }
 
     getDatasetEndWithArr(el) {
@@ -858,3 +853,5 @@ class ChatWindow {
         }
     }
 }
+
+

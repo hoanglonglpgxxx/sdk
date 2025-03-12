@@ -202,6 +202,26 @@
 .window-chatbot .header .header-img {
   flex-basis: 40px;
   flex-shrink: 0;
+  position: relative;
+}
+
+.window-chatbot .header .header-img:hover .header-icon {
+  display: block;
+  transition: all 0.5s;
+}
+
+.window-chatbot .header .header-icon {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  top: 0;
+  background: rgb(255 254 254);
+  border-radius: 42%;
 }
 
 .window-chatbot .header .header-title {
