@@ -39,6 +39,32 @@
    */
 </script>
 
+<script src="https://coquan.vn//3rdparty/ChatBotSDK/js/botSDK.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", async () => {
+    if (typeof ChatWindow !== "undefined") {
+      const chatWindow = new ChatWindow();
+      try {
+        setTimeout(() => {
+          chatWindow.init({
+            primary: "red",
+            site: "https://btlocal.coquan.vn/chatbot",
+            curSite: "https://btlocal.coquan.vn",
+            configCSS: "https://coquan.vn/3rdparty/ChatBotSDK/css/style.css",
+            defaultBotMessage: "Xin chào anh/chị. Anh/chị cần hỗ trợ nội dung gì ạ?",
+            bitelChatbot: "1",
+            getProfileEndPoint: "api/Project/MyBitel/Account/Profile/select",
+          });
+        }, 5000);
+      } catch (error) {
+        console.error("Error initializing ChatWindow:", error);
+      }
+    } else {
+      console.error("botSDK is not loaded.");
+    }
+  });
+</script>
+
 <style>
   .window-chatbot .header {
     display: flex;

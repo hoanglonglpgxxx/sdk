@@ -131,6 +131,16 @@ class ChatWindow {
         return element;
     }
 
+    checkHasPrivilege() {
+        const currentUrl = window.location.href;
+
+        const url = new URL(currentUrl);
+
+        const hasPrivilege = url.searchParams.has('hasPrivilege');
+
+        return hasPrivilege;
+    }
+
     createChatWindow() {
         const chatWindow = this.createElement('div', 'window-chatbot');
 
@@ -143,6 +153,23 @@ class ChatWindow {
             alt: ''
         });
         headerImgContainer.appendChild(headerImg);
+        if (this.checkHasPrivilege()) {
+            let redirectLink = 'https://btlocal.coquan.vn/';
+            const imgRedirectIcon = this.createElement('a', 'header-icon', {
+                href: redirectLink,
+                title: 'Xem chi tiết',
+                target: '_blank'
+            });
+            const settingsIcon = this.createElement('img', '', {
+                src: `/3rdparty/ChatBotSDK/settings-icon.png`,
+                alt: 'Settings',
+                width: 20,
+                height: 20
+            });
+
+            imgRedirectIcon.appendChild(settingsIcon);
+            headerImgContainer.append(imgRedirectIcon);
+        }
 
         const headerTitle = this.createElement('div', 'header-title text-bold padding-h-sm');
         headerTitle.textContent = this.title;
@@ -574,7 +601,6 @@ class ChatWindow {
                     } else {
                         slicedString = that.notag(res.botAnswer.content);
                     }
-                    console.log('longlh', slicedString, res.botAnswer);
 
                     if (!that.isNestedObject(val)) {
                         botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info al-1" data-content="${that.replaceQuotesInTags(val.data)}" data-index="${index}" data-parent-title="${slicedString ?? ''}" data-title="${val.title}" data-normal-title="${val.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1}. ${val.title}</a>`);
@@ -650,15 +676,16 @@ class ChatWindow {
             chatContainer.appendChild(newMessage);
         }
         if (isAuto) {
-            let userQuest = detailVal.title ?? '',
-                botRes = detailVal.content ?? '',
-                botFullName = detailVal.botFullName ?? '',
-                userFullName = detailVal.fullName ?? '',
-                subData = detailVal.subData,
-                parentTitle = detailVal.parentTitle ?? '',
-                curIndex = detailVal.index ?? '',
-                parentIdx = detailVal.parentIdx ?? '';
-            console.log('123123', botRes, el);
+            const {
+                title: userQuest = '',
+                content: botRes = '',
+                botFullName = '',
+                fullName: userFullName = '',
+                subData,
+                parentTitle = '',
+                index: curIndex = '',
+                parentIdx = ''
+            } = detailVal;
             let isAttachedFormLabel = el.classList.contains('sub-data') && el.classList.contains('al-2');
             let tempStr = (botRes.length || isAttachedFormLabel) ? `${userQuest} của ${parentTitle} là:` : `Các thông tin liên quan đến (${parseInt(curIndex ?? 0) + 1} - ${userQuest}). Click chọn thông tin.`;
             newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(currentServerTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
@@ -689,7 +716,6 @@ class ChatWindow {
                                 if (nestedKey !== 'sortOrder') botContent += (nestedVal.data ?? '') + '<br>';
                             }
                             botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${Math.floor(currentServerTime / 1000)}">Vừa xong</div></div><div class="item-bottom"><div class="title">${tempStr}<br>${botContent.trim() ?? ''}</div></div></div>`;
-                            console.log(21231, botContent);
                         } else {
                             modifiedData = JSON.stringify(subArr).replace(/"/g, '&quot;');
                             botNewMessage.querySelector('.title').insertAdjacentHTML('beforeend', `<a href="javascript:void(0)" class="other-info sub-data al-2" data-content-arr="${modifiedData}" data-index="${index}" data-parent-index="${detailVal.index}" data-parent-title="${detailVal.title}" data-title="${subArr.title}" data-normal-title="${subArr.title.toLowerCase()}" data-bot-full-name="${botRes.fullName ?? 'Trợ lý ảo'}" data-full-name="${res.fullName ?? 'Bạn'}">${parseInt(index) + 1} .${subArr.title}</a>`);
@@ -853,5 +879,3 @@ class ChatWindow {
         }
     }
 }
-
-

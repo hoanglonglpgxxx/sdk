@@ -135,9 +135,9 @@ class ChatWindow {
 
         const url = new URL(currentUrl);
 
-        const hasItemsPerPage = url.searchParams.has('itemsPerPage');
+        const hasPrivilege = url.searchParams.has('hasPrivilege');
 
-        return hasItemsPerPage;
+        return hasPrivilege;
     }
 
     createChatWindow() {
@@ -156,7 +156,8 @@ class ChatWindow {
             let redirectLink = 'https://btlocal.coquan.vn/';
             const imgRedirectIcon = this.createElement('a', 'header-icon', {
                 href: redirectLink,
-                title: 'Xem chi tiết'
+                title: 'Xem chi tiết',
+                target: '_blank'
             });
             const settingsIcon = this.createElement('img', '', {
                 src: `${this.site}/3rdparty/ChatBotSDK/settings-icon.png`,
