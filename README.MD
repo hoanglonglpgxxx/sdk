@@ -8,6 +8,3 @@
 11. CHƯA CÓ CÁCH LẤY SITEID
 12. sao load async lại lỗi, tìm hướng fix
 13. tipsy tooltip load khi nào? chưa thấy case hiện ra
-
-14. viết 1 bản nữa dùng api chatgpt
-    Công bố cơ sở đủ điều kiện trị nghiện các chất dạng thuốc phiện bằng thuốc thay thế
