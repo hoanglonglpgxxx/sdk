@@ -2,9 +2,9 @@ class ChatWindow {
     async init(config) {
         if (config.site === "https://haiduong-chatbot.coquan.net") {
             config.site = "https://chatbot.haiduong.gov.vn";
-            config.hasReview = 1;
         }
         this.site = config.site || window.location.origin;
+        this.curSite = config.curSite || window.location.origin;
         this.chatGPTImg = config.chatGPTImg ?? 'https://haiduong-chatbot.coquan.net/upload/2006916/20250102/Group_0daaf.png';
         this.bigIconChat = config.bigIconChat ?? 'https://haiduong-chatbot.coquan.net/upload/2006916/20250102/bot_main_img_c172f.png';
         this.title = config.title || 'Trợ lý ảo';
@@ -13,6 +13,7 @@ class ChatWindow {
         this.basePerformanceTime = null;
         this.serverTimeInitialized = false;
         this.serverStartTime = null;
+        this.profile = {};
         this.bitelChatbot = config.bitelChatbot || false;
         this.defaultErrMsg = "Trợ lý ảo hiện không thể phản hồi, vui lòng thử lại sau.";
         this.endConvMsg = config.endConvMsg || 'Cảm ơn anh/chị đã quan tâm!';
@@ -23,22 +24,32 @@ class ChatWindow {
         this.lobiboxCSSPath = config.lobiboxCSSPath || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/css/lobibox.min.css';
         this.lobiboxJSPath = config.lobiboxJSPath || 'https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/js/lobibox.min.js';
         this.sendEndPoint = config.sendEndPoint || 'api/Extra/ChatBot/Chat/send';
+        this.delHistoryEndpoint = config.delHistoryEndpoint || 'api/Extra/ChatBot/Chat/clearChat';
         if (typeof jQuery === 'undefined') {
             this.loadScript(this.jqueryPath);
         }
-        this.processedElements = new Set();
-        this.hasReview = config.hasReview || false;
+        this.getProfileEndPoint = config.getProfileEndPoint || '';
 
         this.loadCSS(this.configCSS);
         if (!this.bitelChatbot) {
             this.loadCSS(this.bootstrapIconPath);
         }
-        this.setRootCSS('primary', config.primary ?? 'blue');
 
+        this.setRootCSS('primary', config.primary ?? 'blue');
         let p = `<div id="chat-GPT" class="chatGPT-icon chatbot-icon"><div class="icon-container"></div><a href="javascript:void(0);" class="chatGPT-icon-action"><img alt="ChatIcon" src="${this.bigIconChat}" height="80" /></a><span class="x-botchat" id="x-botchat"><svg width="16" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.729 5.285 C 5.520 5.388,5.294 5.645,5.233 5.848 C 5.128 6.197,5.025 6.078,8.113 9.170 L 10.939 12.000 8.113 14.830 C 5.009 17.938,5.128 17.801,5.237 18.165 C 5.304 18.388,5.618 18.700,5.835 18.759 C 6.214 18.861,6.061 18.993,9.170 15.887 L 12.000 13.061 14.830 15.887 C 17.939 18.993,17.786 18.861,18.165 18.759 C 18.386 18.699,18.699 18.386,18.759 18.165 C 18.861 17.786,18.993 17.939,15.887 14.830 L 13.061 12.000 15.887 9.170 C 18.993 6.061,18.861 6.214,18.759 5.835 C 18.700 5.618,18.388 5.304,18.165 5.237 C 17.801 5.128,17.938 5.009,14.830 8.113 L 12.000 10.939 9.190 8.131 C 7.229 6.172,6.335 5.305,6.231 5.262 C 6.033 5.179,5.933 5.184,5.729 5.285 " stroke="none" fill-rule="evenodd" fill="black"></path></svg></span></div><div id="chat-window" class="chat-window"></div>`;
         document.body.insertAdjacentHTML("beforeend", p);
 
+        if (this.getProfileEndPoint) {
+            this.profile = await this.checkIsClient();
+        }
+
         this.initEvents();
+
+        if (this.bitelChatbot) {
+            window.addEventListener('beforeunload', async (event) => {
+                this.deleteHistory();
+            });
+        }
     }
 
     setRootCSS(name, val) {
@@ -109,6 +120,7 @@ class ChatWindow {
             }
             chatGPTIcon.style.display = 'none';
         });
+
         xBotChat.addEventListener('click', function (e) {
             e.stopPropagation();
             if (chatGPTIcon) {
@@ -135,6 +147,217 @@ class ChatWindow {
         return element;
     }
 
+    openModal(params = {}) {
+        const modal = this.createElement('div', 'modal-container modal-register', {
+            style: 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 9999;'
+        });
+
+        const modalContent = this.createElement('div', 'modal-content', {
+            style: 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #fff; padding: 20px; border-radius: 8px; width: 80%; max-width: 500px;'
+        });
+
+        const modalHeader = this.createElement('div', 'modal-header', {
+            style: 'display: flex; justify-content: end; align-items: center;'
+        });
+        const modalTitle = this.createElement('h2', '', {
+            style: 'margin: 0;'
+        });
+        modalTitle.textContent = params.title || 'Modal Title';
+        const closeModalButton = this.createElement('button', 'close-modal', {
+            style: 'background: none; border: none; font-size: 40px; cursor: pointer;'
+        });
+        closeModalButton.innerHTML = '&times;';
+        closeModalButton.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        // modalHeader.appendChild(modalTitle);
+        modalHeader.appendChild(closeModalButton);
+
+        const modalBody = this.createElement('div', 'modal-body', {
+            style: 'margin-top: 20px;'
+        });
+        const bodyContent = this.createElement('div', 'body-content');
+        const bodyTitle = this.createElement('p');
+        bodyTitle.innerHTML = params.msg || '';
+        const bodyImg = this.createElement('img', 'body-img', {
+            src: `/3rdparty/ChatBotSDK/success.png`,
+            alt: 'Settings',
+        });
+        bodyContent.appendChild(bodyImg);
+        bodyContent.appendChild(bodyTitle);
+        modalBody.appendChild(bodyContent);
+
+        const modalFooter = this.createElement('div', 'modal-footer', {
+            style: 'margin-top: 20px; display: flex; justify-content: flex-end;'
+        });
+        const closeButton = this.createElement('button', 'close-button', {
+            style: 'padding: 10px 20px; background-color: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer;'
+        });
+        closeButton.textContent = 'Close';
+        closeButton.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        modalFooter.appendChild(closeButton);
+
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalBody);
+        modalContent.appendChild(modalFooter);
+
+        modal.appendChild(modalContent);
+
+        document.body.appendChild(modal);
+
+        modal.style.display = 'block';
+    }
+
+    openModalNew(params, obj) {
+        let modal = obj ? $(obj).data('xModalObject') : false;
+        if (params.require) {
+            let msg = eval(params.require); //NOSONAR
+            if (msg) {
+                this.alert(msg);
+                return;
+            }
+            delete params.require;
+        }
+        if (!params.gridModuleParentId && obj) {
+            params.gridModuleParentId = $(obj).parents('.ModuleWrapper:first').attr('id').replace('module', '');
+        }
+        if (modal) {
+            modal.find('.modal-body:first').loadModule('Content.Form', params);
+            modal.modal('toggle');
+        } else {
+            let title = params.modalTitle || params.title || $(obj).attr('title'),
+                headerCode = '';
+            if (!params.modalHideHeader) {
+                headerCode = `
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close" title="{'Close'}">
+        <span ><i class="vi vi-x-large"></i></span>
+    </button>${title ? '<h4 class="modal-title title-sm" ' + 'title="' + this.notag(title) + '">' + this.notag(title) + '</h4>' : ''}
+</div>`;
+            }
+            modal = $(`
+<div class="modal fade" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+    <div class="modal-dialog${params.modalClass ? ' ' + params.modalClass : ''}" role="document">
+        <div class="modal-content">
+            ${params.modalHeader || headerCode}
+            <div class="modal-body"></div>
+            ${params.modalFooter || ''}
+        </div>
+    </div>
+</div>`);
+
+            if (params.isConfirmPopup) {
+                let check = true, message = "{'Bạn có chắc chắn muốn thoát khỏi màn hình thêm mới?'}";
+                if (params.itemId) {
+                    message = "{'Bạn có chắc chắn muốn thoát khỏi màn hình chỉnh sửa?'}";
+                }
+                modal.on("hide.bs.modal", function () {
+                    if (check) {
+                        this.confirm("{'Xác nhận thoát'}",
+                            (params.confirmPopupMessage || message)
+                            , function () {
+                                check = false;
+                                setTimeout(function () {
+                                    modal.modal('hide');
+                                }, 500);
+                            }, {
+                            buttons: {
+                                no: {
+                                    class: "lobibox-btn lobibox-btn-no button-confirm-primary",
+                                    text: "{'Hủy bỏ'}",
+                                }, yes: {
+                                    class: "lobibox-btn lobibox-btn-yes button-confirm-primary",
+                                    text: "{'Thoát'}",
+                                },
+
+                            }
+                        }
+                        );
+                        return false;
+                    } else {
+                        check = true;
+                        return true;
+                    }
+                });
+            }
+            if (obj) {
+                $(obj).data('xModalObject', modal);
+            }
+            modal.find('.modal-body:first').loadModule('Content.Form', params);
+            let backdrop;
+            if (params.backdrop) {
+                backdrop = params.backdrop == 'false' ? false : params.backdrop;
+            } else {
+                backdrop = 'static';
+            }
+            modal.modal({
+                backdrop: backdrop,
+                keyboard: !!params.allowEsc
+            });
+        }
+        if (params.keepModal) {
+            modal.on("hidden.bs.modal", function () {
+                $('body').addClass('modal-open');
+            });
+        }
+        if (typeof (params.allowEsc) === 'undefined') {
+            let t = 0, f = function () {
+                if (modal.find('.modal-body:first').is(':empty')) {
+                    if (t++ < 3) {
+                        setTimeout(f, 1000);
+                    }
+                } else if (!modal.find('form').length) {
+                    let md = modal.data('bs.modal');
+                    if (md) {
+                        md.options.keyboard = params.allowCloseModal ? 'true' : 'false';
+                        md.options.backdrop = params.allowCloseModal ? 'true' : 'static';
+                        md.escape();
+                    }
+                }
+            };
+            setTimeout(f, 1000);
+        }
+    }
+
+    checkHasPrivilege() {
+        const currentUrl = window.location.href;
+
+        const url = new URL(currentUrl);
+
+        const hasPrivilege = url.searchParams.has('hasPrivilege');
+
+        return hasPrivilege;
+    }
+
+    //hàm chỉ có tác dụng cho việc demo
+    checkHasRequest(requestParam) {
+        const currentUrl = window.location.href;
+
+        const url = new URL(currentUrl);
+
+        const hasPrivilege = url.searchParams.has(requestParam);
+
+        return hasPrivilege;
+    }
+
+    //Hàm call xóa lịch sử cho user khi reload/đóng current tab
+    async deleteHistory() {
+        let that = this;
+        let mountpoint = `${that.site}/${that.delHistoryEndpoint}`;
+        try {
+            const response = await fetch(mountpoint);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+
     createChatWindow() {
         const chatWindow = this.createElement('div', 'window-chatbot');
 
@@ -147,22 +370,23 @@ class ChatWindow {
             alt: ''
         });
         headerImgContainer.appendChild(headerImg);
+        if (this.checkHasPrivilege()) {
+            let redirectLink = 'https://btlocal.coquan.vn/';
+            const imgRedirectIcon = this.createElement('a', 'header-icon', {
+                href: redirectLink,
+                title: 'Xem chi tiết',
+                target: '_blank'
+            });
+            const settingsIcon = this.createElement('img', '', {
+                src: `/3rdparty/ChatBotSDK/settings-icon.png`,
+                alt: 'Settings',
+                width: 20,
+                height: 20
+            });
 
-        let redirectLink = 'https://chatbot.haiduong.gov.vn/';
-        const imgRedirectIcon = this.createElement('a', 'header-icon', {
-            href: redirectLink,
-            title: 'Xem chi tiết',
-            target: '_blank'
-        });
-        const settingsIcon = this.createElement('img', '', {
-            src: `https://haiduong-chatbot.coquan.net/3rdparty/ChatBotSDK/settings-icon.png`,
-            alt: 'Settings',
-            width: 20,
-            height: 20
-        });
-
-        imgRedirectIcon.appendChild(settingsIcon);
-        headerImgContainer.append(imgRedirectIcon);
+            imgRedirectIcon.appendChild(settingsIcon);
+            headerImgContainer.append(imgRedirectIcon);
+        }
 
         const headerTitle = this.createElement('div', 'header-title text-bold padding-h-sm');
         headerTitle.textContent = this.title;
@@ -455,12 +679,114 @@ class ChatWindow {
         return div.textContent || '';
     }
 
+    async checkIsClient() {
+        let that = this;
+        let mountpoint = `${that.curSite}/${that.getProfileEndPoint}?options[getBCCSInfo]=1`;
+        const DEMO_USER = {
+            "fullName": "QUYEN Nguyen Thai",
+            "phone": "935258529",
+            "planName": "N_ilimitado79C",
+            "productCode": "N_ilimitado79C",
+            "lastPackageTime": 1739430552,
+            "packageCount": 1,
+            "rankName": "Exclusive",
+            "email": "quyennt1@bitel.com.pe",
+            "lastBuyAddOnTime": 1738861646,
+            "totalBuyAddOnAmount": 20,
+            "buyVasSubscriptionCount": 3,
+            "lastBuyVasSubscriptionTime": 1740629281,
+            "totalBuyVasSubscriptionAmount": 18.9,
+            "debit": 42.85,
+            "modality": "POSTPAID",
+            "benefit": "97.73",
+            "smsInfos": [
+                {
+                    "title": "SMS Ilimitados TDN",
+                    "benefit": "Ilimitado",
+                    "expiredDate": "16\/03\/2025"
+                }
+            ],
+            "callInfos": [
+                {
+                    "title": "Minutos Bitel a Bitel",
+                    "benefit": "Ilimitado",
+                    "expiredDate": "16\/03\/2025"
+                },
+                {
+                    "title": "Minutos a Vietnam",
+                    "benefit": "Ilimitado",
+                    "expiredDate": "16\/03\/2025"
+                },
+                {
+                    "title": "Min. Ilimitados TDN",
+                    "benefit": "Ilimitado",
+                    "expiredDate": "16\/03\/2025"
+                }
+            ],
+            "dataInfos": {
+                "main": {
+                    "title": "Datos de alta velocidad",
+                    "resumeBalance": 129.7,
+                    "grossBalance": 131,
+                    "comsumeBalance": 1.3,
+                    "unit": "GB",
+                    "expiredDate": "16\/03\/2025"
+                },
+                "promotion": {
+                    "title": "Datos Promocionales",
+                    "unit": "GB",
+                    "grossBalance": "170.7",
+                    "expiredDate": "16\/03\/2025",
+                    "isPromotion": "1"
+                },
+                "roaming": null
+            },
+            "appInfos": [
+                {
+                    "accountName": "Spotify",
+                    "expiredDate": "16\/04\/2025",
+                    "grossBalance": 243,
+                    "registerDate": "16\/09\/2024 08:48:54",
+                    "resumeBalance": 243,
+                    "unit": "GB"
+                }
+
+            ],
+            "mainDataInfo": {
+                "title": "Main Data",
+                "resumeBalance": 300.4,
+                "grossBalance": 301.7,
+                "comsumeBalance": 1.3,
+                "unit": "GB",
+                "expiredDate": "16\/03\/2025",
+                "isUnlimited": 0,
+                "deadlineCharge": "15\/03\/2025",
+                "billCycleFrom": 16
+            },
+            "debitRecent": "15\/03\/2025"
+        };
+        try {
+            const response = await fetch(mountpoint);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            let data = await response.json();
+            //Apply user giả
+            if (data && that.checkHasRequest('au')) {
+                data = DEMO_USER;
+            }
+            return data;
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    }
+
+
     async submitFunc(site, el, isOption = false) {
         let that = this;
         let rawContent = el.html();
         let decodedContent = this.decodeHTMLEntities(rawContent);
         let sanitizedContent = this.stripTagsKeepText(decodedContent);
-
         let initialMessageAdded = false;
 
         this.addMessage({}, sanitizedContent).then(() => {
@@ -471,17 +797,28 @@ class ChatWindow {
                 el.text('');
             }, 100);
         };
-
-        let mountpoint = `${site}/${this.sendEndPoint}?text=${encodeURIComponent(sanitizedContent)}`;
+        let mountpoint = '';
+        let isClientProfile = that.profile && Object.keys(that.profile).length > 0;
         try {
-            const response = await fetch(mountpoint);
-            /* const response = await fetch(`${site}/${this.sendEndPoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ text: sanitizedContent })
-            }); */
+            let response;
+
+            if (isClientProfile) {
+                response = await fetch(`${site}/${this.sendEndPoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: sanitizedContent, extraParams: that.profile })
+                });
+            } else {
+                response = await fetch(`${site}/${this.sendEndPoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: sanitizedContent, extraParams: { "user_name": "guest" } })
+                });
+            }
             if (!response.ok) {
                 if (response.status === 504) {
                     this.alert("Máy chủ hiện không phản hồi. Vui lòng thử lại sau.", {
@@ -498,42 +835,15 @@ class ChatWindow {
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
                 await this.addMessage(res, sanitizedContent);
-            }
-        } catch (error) {
-            this.alert("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.", {
-                delay: 3000,
-                type: 'error'
-            });
-            throw error;
-        }
-    }
+                const registerLinks = document.querySelectorAll('.register-link');
 
-    async handleReviewAction(el) {
-        let that = this;
-
-        let ratingMountPoint = `${that.site}/api/Connect/AI/ChatBot/TTHC/chatbotRating?value=${el.dataset.value}`;
-        that.addMessage({}, el.text, false, {}, null, true);
-        /* setTimeout(() => {
-            that.addBotSingleMessage('Xin cảm ơn đánh giá của bạn!', false);
-        }, 200); */
-        that.scrollBottom();
-        try {
-            const response = await fetch(ratingMountPoint);
-            if (!response.ok) {
-                if (response.status === 504) {
-                    this.alert("Máy chủ hiện không phản hồi. Vui lòng thử lại sau.", {
-                        delay: 3000,
-                        type: 'error'
+                if (registerLinks.length > 0) {
+                    registerLinks.forEach(link => {
+                        link.addEventListener('click', async function () {
+                            that.handleRegisterLinkClick(res);
+                        });
                     });
-                } else {
-                    that.addBotSingleMessage(that.defaultErrMsg);
-                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            } else {
-                that.alert('Đánh giá thành công', {
-                    'delay': 3000,
-                    'type': 'success'
-                });
             }
         } catch (error) {
             this.alert("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.", {
@@ -564,15 +874,15 @@ class ChatWindow {
         });
     }
 
-    addBotSingleMessage(str, isReviewMsg = false) {
+    addBotSingleMessage(str) {
         let botNewMessage = this.createElement('div'),
             chatContainer = document.querySelector('.list-message-chat'),
             that = this,
-            time = parseInt(new Date(that.lastMessageTime).getTime(), 10) + (isReviewMsg ? 10000 : that.msgInterval);
+            time = parseInt(new Date(that.lastMessageTime).getTime(), 10) + that.msgInterval;
         let lastBotMsg = document.querySelector('.message-item:not(.me-message):last-of-type'),
             botImg = lastBotMsg?.querySelector('.item-img img').getAttribute('src') || that.chatGPTImg,
             botFullName = lastBotMsg?.querySelector('.item-content .item-top .name').innerText || that.title;
-        botNewMessage.className = `message bot-default-msg message-item margin-bottom-md d-flex today comment-item chat-message ${isReviewMsg ? 'review-msg' : ''}`;
+        botNewMessage.className = `message bot-default-msg message-item margin-bottom-md d-flex today comment-item chat-message`;
 
         botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botFullName}</div> <div class="time bot-default-msg-time bot-time" data-time="${time / 1000}">Vừa xong</div></div><div class="item-bottom"><div class="title">${str ?? ''}</div></div></div>`;
 
@@ -580,7 +890,7 @@ class ChatWindow {
         this.scrollBottom();
     }
 
-    async addMessage(res, input, isAuto = false, detailVal = {}, el = null, isReview = false) {
+    async addMessage(res, input, isAuto = false, detailVal = {}, el = null) {
         let newMessage = this.createElement('div'),
             botNewMessage = this.createElement('div'),
             chatContainer = document.querySelector('.list-message-chat'),
@@ -588,7 +898,7 @@ class ChatWindow {
             day = this.getDay(),
             msg = input,
             that = this;
-        newMessage.className = `message message-item margin-bottom-md d-flex today me-message comment-item chat-message ${isReview ? 'review-response' : ''}`;
+        newMessage.className = `message message-item margin-bottom-md d-flex today me-message comment-item chat-message`;
         botNewMessage.className = `message message-item margin-bottom-md d-flex today comment-item chat-message`;
 
         let updateTime = (timeEl, createdTime, currentTime) => {
@@ -612,12 +922,27 @@ class ChatWindow {
 
         let updateTimeIntervalId;
         if (res.botAnswer) {
-            let botRes = res.botAnswer;
-            msg = botRes?.content;
-            let botMsg = msg.startsWith("<!DOCTYPE html") ? "Xin lỗi, hệ thống hiện đang bảo trì! Vui lòng thử lại sau." : msg;
-            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botRes.fullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${res.botAnswer.createdTime}">Vừa xong</div></div><div class="item-bottom"><div class="title">${botMsg.replace(/(<br\s*\/?>\s*){2,}/g, '<br>') ?? ''}</div></div></div>`;
+            let botRes = res.botAnswer,
+                msg = botRes?.content,
+                msgContent = '';
+            try {
+                if (msg && typeof msg === "string") {
+                    let parsedMsg = JSON.parse(msg);
+
+                    if (typeof parsedMsg === "object" && parsedMsg !== null) {
+                        msgContent = `Bạn đang yêu cầu đăng ký gói cước ${parsedMsg.plan_name} phải không? Vui lòng bấm vào <a href="javascript:void(0);" class="register-link">đây</a> để tiếp tục đăng ký gói cước!`;
+                    } else {
+                        throw new Error("Not a valid JSON object");
+                    }
+                }
+            } catch (e) {
+                msgContent = msg.replace(/(<br\s*\/?>\s*){2,}/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            }
+
+            botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${botRes.fullName ?? 'Bạn'}</div> <div class="time bot-time" data-time="${res.botAnswer.createdTime}">Vừa xong</div></div><div class="item-bottom"><div class="title">${msgContent ?? ''}</div></div></div>`;
 
             chatContainer.appendChild(botNewMessage);
+
             if (res.botAnswer.otherInfo && Object.keys(res.botAnswer.otherInfo).length) {
                 let otherInfo = res.botAnswer.otherInfo;
                 that.botOtherInfo = otherInfo;
@@ -654,7 +979,7 @@ class ChatWindow {
                 }
             }
 
-            if (res && !Object.keys(res.botAnswer.otherInfo).length && !res.botAnswer.otherInfo.length) {
+            if (res && res.botAnswer && res.botAnswer.otherInfo && !Object.keys(res.botAnswer.otherInfo).length) {
                 that.botOtherInfo = {};
             }
             this.scrollBottom();
@@ -707,14 +1032,16 @@ class ChatWindow {
             chatContainer.appendChild(newMessage);
         }
         if (isAuto) {
-            let userQuest = detailVal.title ?? '',
-                botRes = detailVal.content ?? '',
-                botFullName = detailVal.botFullName ?? '',
-                userFullName = detailVal.fullName ?? '',
-                subData = detailVal.subData,
-                parentTitle = detailVal.parentTitle ?? '',
-                curIndex = detailVal.index ?? '',
-                parentIdx = detailVal.parentIdx ?? '';
+            const {
+                title: userQuest = '',
+                content: botRes = '',
+                botFullName = '',
+                fullName: userFullName = '',
+                subData,
+                parentTitle = '',
+                index: curIndex = '',
+                parentIdx = ''
+            } = detailVal;
             let isAttachedFormLabel = el.classList.contains('sub-data') && el.classList.contains('al-2');
             let tempStr = (botRes.length || isAttachedFormLabel) ? `${userQuest} của ${parentTitle} là:` : `Các thông tin liên quan đến (${parseInt(curIndex ?? 0) + 1} - ${userQuest}). Click chọn thông tin.`;
             newMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${this.chatGPTImg}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${userFullName ?? 'Bạn'}</div> <div class="time my-time" data-time=${Math.floor(currentServerTime / 1000)}>Vừa xong</div></div><div class="item-bottom"><div class="title">${userQuest ?? ''}</div></div></div>`;
@@ -784,37 +1111,108 @@ class ChatWindow {
         })();
         this.lastMessageTime = new Date(res.botAnswer && res.botAnswer.createdTime ? res.botAnswer.createdTime * 1000 : currentServerTime);
         const lastMessageTime = this.lastMessageTime;
-        const lastMessage = document.querySelector('.message:last-of-type');
-        if (this.hasReview) {
-            setTimeout(() => {
-                if (this.lastMessageTime === lastMessageTime) {
-                    let reviewMsg = 'Mức độ hài lòng của bạn khi sử dụng trợ lý ảo' + `<br><a href="javascript:void(0);" class="review-btn" data-value="1">Rất hài lòng</a><a href="javascript:void(0);" class="review-btn" data-value="2">Hài lòng</a><a href="javascript:void(0);" class="review-btn" data-value="3">Bình thường</a><a href="javascript:void(0);" class="review-btn" data-value="4">Không hài lòng</a><a href="javascript:void(0);" class="review-btn" data-value="5">Rất không hài lòng</a>`;
-                    if (!lastMessage.classList.contains('review-response')) {
-                        that.addBotSingleMessage(reviewMsg, true);
-                    }
-                }
-                const reviewBtns = document.querySelectorAll('.review-btn');
-
-                if (reviewBtns.length > 0) {
-                    reviewBtns.forEach(link => {
-                        link.addEventListener('click', async function () {
-                            that.handleReviewAction(this);
-                            const prevBtns = this.parentElement.querySelectorAll('.review-btn');
-                            prevBtns.forEach(button => {
-                                button.disabled = true;
-                                button.style.pointerEvents = 'none';
-                                button.style.opacity = '0.5';
-                            });
-                        });
-                    });
-                }
-            }, 10000);
-        }
         setTimeout(() => {
-            if (this.lastMessageTime === lastMessageTime && (document.getElementsByClassName('review-msg').length || !this.hasReview)) {
+            if (this.lastMessageTime === lastMessageTime) {
                 that.addBotSingleMessage(that.endConvMsg);
             }
         }, this.msgInterval);
+    }
+
+    async handleRegisterLinkClick(res) {
+        let that = this;
+        let botRes = res.botAnswer,
+            msg = botRes?.content,
+            msgContent = '';
+        let msgArgs = [];
+        msg = JSON.parse(msg);
+        console.log(msg);
+
+        if (!msg.modality) {
+            msg.packageTypes = msg.packageType.join(',');
+        }
+
+        if (msg.type == 'Product.MobilePackage') {
+            that.alert('Manipulación exitosa', {
+                'delay': 3000,
+                'type': 'success'
+            });
+            setTimeout(() => {
+                let newParams = {
+                    layout: 'Project.MyBitel.Home.BuyPackage.mobilePackage',
+                    service: 'Project.MyBitel.Home.Product.MobilePackage.select',
+                    modalClass: 'modal-dialog modal-md popup-payment popup-thgv',
+                    itemId: msg.id,
+                    modalTitle: 'Métodos de Pago',
+                    phone: that.profile.phone || '',
+                    email: that.profile.email || ''
+                };
+                that.openModalNew(newParams);
+                // that.redirect(`/_paquetes?productId=${msgArgs.productId}&packageTypes=${msgArgs.packageTypes}`);
+            }, 3000);
+        } else if (msg.type == 'Product.MainPackage') {
+            await that.handleRedirectCart(msg);
+        } else {
+            that.alert('Gói không phù hợp', {
+                'delay': 3000,
+                'type': 'error'
+            });
+        }
+    }
+
+    async handleRedirectCart(params) {
+        let that = this;
+        let updateProdEndPoint = 'api/Project/MyBitel/Home/Cart/updateProduct';
+
+        let paramsObj = new URLSearchParams({
+            'fields[productId]': params.id,
+            'fields[packageType]': params.packageType,
+            'fields[modality]': params.modality,
+            'fields[productType]': params.type,
+            'fields[quantity]': 1,
+            'options[emptyCart]': params.overwriteCart || 1,
+            // 'site': 2005922,
+            // 'securityToken': '3008efc83f273d5cb3dd0192a4b74f15d55b0a0294ac1245034dc752631f7b5a'
+        });
+        let response = await fetch(`${that.curSite}/${updateProdEndPoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: paramsObj.toString()
+        });
+        if (response) {
+            let data = await response.json();
+            if (data.status === 'SUCCESS') {
+                that.alert('Manipulación exitosa', {
+                    'delay': 3000,
+                    'type': 'success'
+                });
+                setTimeout(() => {
+                    that.redirect('/page/Ecommerce/cart?termPolicy=1&confirmInfoCart=1');
+                }, 3000);
+            } else {
+                that.alert('Acción fallida', {
+                    'delay': 3000,
+                    'type': 'error'
+                });
+            }
+        }
+    }
+
+    redirect(url, options) {
+        if (!url) {
+            window[String.fromCharCode(0x6C) + 'ocation'].reload();
+            return;
+        }
+        if ((url.toLowerCase().indexOf('http') === -1) && (url.toLowerCase().indexOf('https') === -1) && (url.indexOf(
+            '/') !== 0)) {
+            url = location.protocol + '//' + url;
+        }
+        if (typeof (url) === 'string' && /^([A-Z]\w*\.)?[\w./?=&,\s-]+$/.test(url)) {
+            url = location.origin + url;
+        }
+
+        window.location.href = url;
     }
 
     hasNumericKeys(obj) {
@@ -930,9 +1328,10 @@ class ChatWindow {
             fullBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.800 2.245 C 20.691 2.277,20.012 2.933,17.710 5.232 L 14.760 8.179 14.758 6.079 C 14.757 4.925,14.741 3.902,14.723 3.806 C 14.653 3.443,14.418 3.268,14.000 3.268 C 13.582 3.268,13.347 3.444,13.278 3.806 C 13.259 3.902,13.243 5.380,13.240 7.091 L 13.235 10.203 13.328 10.370 C 13.429 10.552,13.621 10.702,13.815 10.750 C 13.884 10.766,15.362 10.771,17.100 10.760 C 20.169 10.741,20.264 10.738,20.396 10.660 C 20.669 10.499,20.792 10.182,20.723 9.815 C 20.682 9.596,20.581 9.449,20.396 9.340 C 20.265 9.263,20.177 9.260,18.043 9.248 L 15.825 9.236 18.769 6.288 C 21.399 3.655,21.718 3.322,21.759 3.169 C 21.893 2.658,21.312 2.097,20.800 2.245 M6.840 13.238 C 3.833 13.259,3.736 13.262,3.604 13.340 C 3.419 13.449,3.318 13.596,3.277 13.815 C 3.208 14.182,3.331 14.499,3.604 14.660 C 3.735 14.737,3.823 14.740,5.957 14.752 L 8.175 14.764 5.231 17.712 C 1.996 20.951,2.139 20.785,2.241 21.165 C 2.301 21.386,2.614 21.699,2.835 21.759 C 3.215 21.861,3.049 22.004,6.288 18.769 L 9.236 15.825 9.248 18.043 C 9.260 20.177,9.263 20.265,9.340 20.396 C 9.501 20.669,9.818 20.792,10.185 20.723 C 10.404 20.682,10.551 20.581,10.660 20.396 C 10.738 20.264,10.741 20.169,10.760 17.100 C 10.771 15.362,10.766 13.884,10.750 13.815 C 10.677 13.518,10.386 13.264,10.080 13.231 C 10.003 13.223,8.545 13.226,6.840 13.238 " stroke="none" fill-rule="evenodd" fill="black"></path></svg>';
         } else {
             chatWindow.classList.remove('full-screen');
-            fullBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.840 2.238 C 14.833 2.259,14.736 2.262,14.604 2.340 C 14.419 2.449,14.318 2.596,14.277 2.815 C 14.208 3.182,14.331 3.499,14.604 3.660 C 14.735 3.737,14.823 3.740,16.957 3.752 L 19.175 3.764 16.231 6.712 C 12.996 9.951,13.139 9.785,13.241 10.165 C 13.301 10.386,13.614 10.699,13.835 10.759 C 14.215 10.861,14.049 11.004,17.288 7.769 L 20.236 4.825 20.248 7.043 C 20.260 9.177,20.263 9.265,20.340 9.396 C 20.449 9.581,20.596 9.682,20.815 9.723 C 21.182 9.792,21.499 9.669,21.660 9.396 C 21.738 9.264,21.741 9.169,21.760 6.100 C 21.771 4.362,21.766 2.884,21.750 2.815 C 21.677 2.518,21.386 2.264,21.080 2.231 C 21.003 2.223,19.545 2.226,17.840 2.238 M9.800 13.245 C 9.691 13.277,9.012 13.933,6.710 16.232 L 3.760 19.179 3.758 17.079 C 3.757 15.925,3.741 14.902,3.723 14.806 C 3.653 14.443,3.418 14.268,3.000 14.268 C 2.582 14.268,2.347 14.444,2.278 14.806 C 2.259 14.902,2.243 16.380,2.240 18.091 L 2.235 21.203 2.328 21.370 C 2.429 21.552,2.621 21.702,2.815 21.750 C 2.884 21.766,4.362 21.771,6.100 21.760 C 9.169 21.741,9.264 21.738,9.396 21.660 C 9.581 21.551,9.682 21.404,9.723 21.185 C 9.792 20.818,9.669 20.501,9.396 20.340 C 9.265 20.263,9.177 20.260,7.043 20.248 L 4.825 20.236 7.769 17.288 C 10.399 14.655,10.718 14.322,10.759 14.169 C 10.893 13.658,10.312 13.097,9.800 13.245 " stroke="none" fill-rule="evenodd" fill="black"></path></svg>';
+            fullBtn.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"' +
+                ' xmlns="http://www.w3.org/2000/svg"><path d="M17.840 2.238 C 14.833 2.259,14.736 2.262,14.604 2.340' +
+                ' C 14.419 2.449,14.318 2.596,14.277 2.815 C 14.208 3.182,14.331 3.499,14.604 3.660 C 14.735' +
+                ' 3.737,14.823 3.740,16.957 3.752 L 19.175 3.764 16.231 6.712 C 12.996 9.951,13.139 9.785,13.241 10.165 C 13.301 10.386,13.614 10.699,13.835 10.759 C 14.215 10.861,14.049 11.004,17.288 7.769 L 20.236 4.825 20.248 7.043 C 20.260 9.177,20.263 9.265,20.340 9.396 C 20.449 9.581,20.596 9.682,20.815 9.723 C 21.182 9.792,21.499 9.669,21.660 9.396 C 21.738 9.264,21.741 9.169,21.760 6.100 C 21.771 4.362,21.766 2.884,21.750 2.815 C 21.677 2.518,21.386 2.264,21.080 2.231 C 21.003 2.223,19.545 2.226,17.840 2.238 M9.800 13.245 C 9.691 1cre3.277,9.012 13.933,6.710 16.232 L 3.760 19.179 3.758 17.079 C 3.757 15.925,3.741 14.902,3.723 14.806 C 3.653 14.443,3.418 14.268,3.000 14.268 C 2.582 14.268,2.347 14.444,2.278 14.806 C 2.259 14.902,2.243 16.380,2.240 18.091 L 2.235 21.203 2.328 21.370 C 2.429 21.552,2.621 21.702,2.815 21.750 C 2.884 21.766,4.362 21.771,6.100 21.760 C 9.169 21.741,9.264 21.738,9.396 21.660 C 9.581 21.551,9.682 21.404,9.723 21.185 C 9.792 20.818,9.669 20.501,9.396 20.340 C 9.265 20.263,9.177 20.260,7.043 20.248 L 4.825 20.236 7.769 17.288 C 10.399 14.655,10.718 14.322,10.759 14.169 C 10.893 13.658,10.312 13.097,9.800 13.245 " stroke="none" fill-rule="evenodd" fill="black"></path></svg>';
         }
     }
 }
-
-

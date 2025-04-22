@@ -115,6 +115,17 @@
   transform-origin: 50% 50%;
 }
 
+.review-msg .review-btn {
+  display: block;
+  padding: 5px 10px;
+  border: 1px solid #d5c1c1;
+  border-radius: 10px;
+  background: #fff;
+  width: fit-content;
+  color: #333;
+  margin: 4px 0;
+}
+
 @keyframes oscillate-rotation {
   0% {
     transform: rotate(0) scale(1) skew(0deg);
@@ -447,6 +458,10 @@
 
 .list-message-chat .message-item.sequential .item-top {
   display: none;
+}
+
+.list-message-chat .chat-message .register-link {
+  color: #6947e9;
 }
 
 /*-----------------MESSAGE SCROLLER*/
