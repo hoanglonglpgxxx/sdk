@@ -359,9 +359,13 @@
 }
 
 .window-chatbot.full-screen .list-message-chat .message-item .item-bottom .title {
-  max-width: unset;
+  max-width: 100%;
   width: fit-content;
   min-height: 30px;
+}
+
+.window-chatbot.full-screen table thead > tr > th {
+  min-width: 50px;
 }
 
 .window-chatbot.full-screen
@@ -393,6 +397,7 @@
   display: flex;
   flex-direction: column;
   padding-left: 7.5px;
+  overflow: hidden;
 }
 
 .list-message-chat .message-item .item-top {
@@ -402,7 +407,7 @@
 }
 
 .list-message-chat .message-item .item-bottom .title {
-  max-width: 400px;
+  max-width: 350px;
   word-break: break-word;
   width: fit-content;
   background: #f3f3f4;
@@ -411,6 +416,7 @@
   padding-right: 7.5px !important;
   padding-top: 0.5rem !important;
   padding-bottom: 0.5rem !important;
+  overflow-x: auto;
 }
 
 .list-message-chat .message-item .item-top .name {

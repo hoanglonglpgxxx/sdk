@@ -860,6 +860,7 @@ export class ChatWindow {
                 }
             } catch (e) {
                 msgContent = msg.replace(/(<br\s*\/?>\s*){2,}/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                msgContent = that.convertMarkdownTable(msgContent);
             }
 
             botNewMessage.innerHTML = `<div class="item-img"><img style="width: 50px;" alt="" src="${botRes.avartar ? botRes.avartar : (this.chatGPTImg ? this.chatGPTImg : 'https://coquan.vn/Extra/ChatGPT/images/small-icon.png')}" /></div><div class="item-content"><div class="item-top"><div class="name text-bold">${that.sender}</div> <div class="time bot-time" data-time="${res.botAnswer.createdTime}">${that.rencently}</div></div><div class="item-bottom"><div class="title">${msgContent ?? ''}</div></div></div>`;
