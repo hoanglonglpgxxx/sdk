@@ -65,12 +65,12 @@ export class ChatWindow {
 
         this.initEvents();
 
-        if (this.bitelChatbot) {
+        /*if (this.bitelChatbot) {
             window.addEventListener('beforeunload', async (event) => {
                 const url = `${this.site}/${this.delHistoryEndpoint}`;
                 navigator.sendBeacon(url);
             });
-        }
+        }*/
     }
 
     setRootCSS(name, val) {
@@ -351,6 +351,7 @@ export class ChatWindow {
             .split('\n')
             .map(line => line)
             .filter(line => line !== '');
+
         const lines = [];
         for (let line of rawLines) {
 
@@ -366,7 +367,7 @@ export class ChatWindow {
         const headers = lines[0].split('|').slice(1, -1).map(h => h.trim());
         const rows = lines.slice(2).map(line =>
             line.split('|').slice(1, -1).map(cell =>
-                cell.trim().replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>').replace(/<br\s*\/?>/gi, '<br>')
+                cell.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>').replace(/<br\s*\/?>/gi, '<br>')
             )
         );
 
@@ -925,13 +926,18 @@ export class ChatWindow {
                     }
                 }
             } catch (e) {
-                msgContent = msg
-                    .replace(/[ ]{2,}/g, ' ')
-                    .replace(/<br\s*\/?>/gi, '\n')
-                    .replace(/\*\*(.*?)\*\*/g, '$1');
-
-                if (/\|.*\|/.test(msgContent)) {
+                if (/\|.*\|/.test(msg)) {
+                    msgContent = msg
+                        .replace(/[ ]{2,}/g, ' ')
+                        .replace(/<br\s*\/?>/gi, '\n')
+                        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
                     msgContent = that.markdownToHTMLTable(msgContent);
+                } else {
+                    msgContent = msg
+                        .replace(/[ ]{2,}/g, (match) => '&nbsp;'.repeat(match.length))
+                        .replace(/<br\s*\/?>/gi, '<br>')
+                        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    console.log(111, msg, 'msgContent:', msgContent);
                 }
             }
 
